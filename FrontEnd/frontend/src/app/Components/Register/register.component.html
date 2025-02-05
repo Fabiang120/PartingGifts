@@ -1,0 +1,28 @@
+<h2>Create Account</h2>
+<form (ngSubmit)="register()" #registerForm="ngForm">
+    <div>
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" [(ngModel)]="user.username" required minlength="4"
+            maxlength="20" pattern="^[a-zA-Z0-9_]+$" #username="ngModel">
+        <div *ngIf="username.invalid && username.touched" style="color: red;">
+            <div *ngIf="username.errors?.['required']">Username is required.</div>
+            <div *ngIf="username.errors?.['minlength']">Minimum 4 characters required.</div>
+            <div *ngIf="username.errors?.['maxlength']">Maximum 20 characters allowed.</div>
+            <div *ngIf="username.errors?.['pattern']">Only letters, numbers, and underscores allowed.</div>
+        </div>
+    </div>
+
+    <div>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" [(ngModel)]="user.password" required minlength="8"
+            #password="ngModel">
+        <div *ngIf="password.invalid && password.touched" style="color: red;">
+            <div *ngIf="password.errors?.['required']">Password is required.</div>
+            <div *ngIf="password.errors?.['minlength']">Password must be at least 8 characters.</div>
+        </div>
+    </div>
+
+    <button type="submit" [disabled]="registerForm.invalid">Register</button>
+</form>
+
+<p *ngIf="message">{{ message }}</p>
