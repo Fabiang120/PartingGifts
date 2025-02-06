@@ -1,0 +1,13 @@
+<h2>Enter Your Personal Details</h2>
+<form (ngSubmit)="submitDetails()" #detailsForm="ngForm">
+    <div>
+        <label for="myEmail">My Email:</label>
+        <input type="email" id="myEmail" name="myEmail" [(ngModel)]="details.myEmail" required>
+    </div>
+    <div>
+        <label for="contactEmail">Contact Email:</label>
+        <input type="email" id="contactEmail" name="contactEmail" [(ngModel)]="details.contactEmail" required>
+    </div>
+    <button type="submit" [disabled]="detailsForm.invalid">Submit Details</button>
+</form>
+<p *ngIf="message">{{ message }}</p>

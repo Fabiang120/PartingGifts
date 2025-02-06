@@ -27,7 +27,7 @@ export class RegisterComponent {
           console.log('Registration response:', response);
           this.message = response;
           setTimeout(() => {
-            this.router.navigate(['/blank']);
+            this.router.navigate(['/blank'], { state: { username: this.user.username } });
           }, 2000);
         },
         error: (err) => {
