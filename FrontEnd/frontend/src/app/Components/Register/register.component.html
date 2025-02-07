@@ -1,28 +1,30 @@
-<h2>Create Account</h2>
-<form (ngSubmit)="register()" #registerForm="ngForm">
-    <div>
-        <label for="username">Username:</label>
+<div class="body">
+    <form (ngSubmit)="register()" #registerForm="ngForm" class="form-container">
+        <img src="https://i.postimg.cc/VsRBMLgn/pglogo.png" class="logo-img" alt="logo"/>
+        <p class="title">Create an account</p>
+        <div class="input-container">
+        <label for="username" class="input-label">Username</label>
         <input type="text" id="username" name="username" [(ngModel)]="user.username" required minlength="4"
-            maxlength="20" pattern="^[a-zA-Z0-9_]+$" #username="ngModel">
-        <div *ngIf="username.invalid && username.touched" style="color: red;">
+                maxlength="20" pattern="^[a-zA-Z0-9_]+$" #username="ngModel" class="input-field">
+        <div *ngIf="username.invalid && username.touched" class="error-message">
             <div *ngIf="username.errors?.['required']">Username is required.</div>
             <div *ngIf="username.errors?.['minlength']">Minimum 4 characters required.</div>
             <div *ngIf="username.errors?.['maxlength']">Maximum 20 characters allowed.</div>
             <div *ngIf="username.errors?.['pattern']">Only letters, numbers, and underscores allowed.</div>
         </div>
-    </div>
-
-    <div>
-        <label for="password">Password:</label>
+        </div>
+    
+        <div class="input-container">
+        <label for="password" class="input-label">Password</label>
         <input type="password" id="password" name="password" [(ngModel)]="user.password" required minlength="8"
-            #password="ngModel">
-        <div *ngIf="password.invalid && password.touched" style="color: red;">
+                #password="ngModel" class="input-field">
+        <div *ngIf="password.invalid && password.touched" class="error-message">
             <div *ngIf="password.errors?.['required']">Password is required.</div>
             <div *ngIf="password.errors?.['minlength']">Password must be at least 8 characters.</div>
         </div>
-    </div>
-
-    <button type="submit" [disabled]="registerForm.invalid">Register</button>
-</form>
-
-<p *ngIf="message">{{ message }}</p>
+        </div>
+    
+        <button type="submit" [disabled]="registerForm.invalid" class="submit-button">Register</button>
+        <p *ngIf="message" class="error-message" style="padding-top: 10px;">{{ message }}</p>
+    </form>
+</div>
