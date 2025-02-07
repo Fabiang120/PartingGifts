@@ -5,5 +5,6 @@
         <input type="file" (change)="onFileSelected($event)" required>
     </div>
     <button type="submit" [disabled]="!selectedFile">Upload Gift</button>
+    <button (click)="goBack()">Back</button>
 </form>
 <p *ngIf="message">{{ message }}</p>
