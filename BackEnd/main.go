@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -11,13 +12,12 @@ import (
 )
 
 type User struct {
-    ID           int    `json:"id"`
-    Username     string `json:"username"`
-    Password     string `json:"password"`
-    MyEmail      string `json:"myEmail,omitempty"`
-    ContactEmail string `json:"contactEmail,omitempty"`
+	ID           int    `json:"id"`
+	Username     string `json:"username"`
+	Password     string `json:"password"`
+	MyEmail      string `json:"myEmail,omitempty"`
+	ContactEmail string `json:"contactEmail,omitempty"`
 }
-
 
 var db *sql.DB
 
@@ -29,8 +29,7 @@ func main() {
 	}
 	defer db.Close()
 
-
-	createTableSQL := `
+	createUsersTableSQL := `
 	CREATE TABLE IF NOT EXISTS users (
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 		username TEXT UNIQUE,
@@ -39,13 +38,28 @@ func main() {
 		contact_email TEXT
 	);
 	`
-	if _, err := db.Exec(createTableSQL); err != nil {
-		log.Fatalf("Failed to create table: %v", err)
+	if _, err := db.Exec(createUsersTableSQL); err != nil {
+		log.Fatalf("Failed to create users table: %v", err)
 	}
 
-	fmt.Println("SQLite database is set up and the 'users' table is ready!")
+	createGiftsTableSQL := `
+	CREATE TABLE IF NOT EXISTS gifts (
+		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER,
+		file_name TEXT,
+		file_data BLOB,
+		upload_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY(user_id) REFERENCES users(id)
+	);
+	`
+	if _, err := db.Exec(createGiftsTableSQL); err != nil {
+		log.Fatalf("Failed to create gifts table: %v", err)
+	}
+
+	fmt.Println("SQLite database is set up and the tables are ready!")
 	http.HandleFunc("/create-account", createAccountHandler)
 	http.HandleFunc("/update-emails", personalDetailsHandler)
+	http.HandleFunc("/upload-gift", uploadGiftHandler)
 	fmt.Println("Server listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("Server failed: %v", err)
@@ -142,4 +156,67 @@ func personalDetailsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Personal details updated successfully"))
+}
+
+func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	err := r.ParseMultipartForm(10 << 20) // Limit of 10MB
+	if err != nil {
+		http.Error(w, "Error parsing multipart form", http.StatusBadRequest)
+		return
+	}
+
+	username := r.FormValue("username")
+	if username == "" {
+		http.Error(w, "Username is required", http.StatusBadRequest)
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Error retrieving the file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	fileData, err := ioutil.ReadAll(file)
+	if err != nil {
+		http.Error(w, "Error reading file data", http.StatusInternalServerError)
+		return
+	}
+
+	var userID int
+	err = db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	stmt, err := db.Prepare("INSERT INTO gifts(user_id, file_name, file_data) VALUES(?, ?, ?)")
+	if err != nil {
+		log.Printf("Error preparing gift insert: %v", err)
+		http.Error(w, fmt.Sprintf("Upload failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(userID, header.Filename, fileData)
+	if err != nil {
+		log.Printf("Error executing gift insert: %v", err)
+		http.Error(w, fmt.Sprintf("Upload failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("Gift uploaded successfully"))
 }

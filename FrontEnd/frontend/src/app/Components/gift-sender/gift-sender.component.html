@@ -1,0 +1,9 @@
+<h2>Set Up Gift</h2>
+<p>Your username: {{ username }}</p>
+<form (ngSubmit)="uploadGift()" #giftForm="ngForm">
+    <div>
+        <input type="file" (change)="onFileSelected($event)" required>
+    </div>
+    <button type="submit" [disabled]="!selectedFile">Upload Gift</button>
+</form>
+<p *ngIf="message">{{ message }}</p>

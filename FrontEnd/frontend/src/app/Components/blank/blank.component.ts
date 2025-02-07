@@ -9,6 +9,7 @@ import { CommonModule } from '@angular/common';
   template: `
     <p>Blank page works!</p>
     <button (click)="goToPersonalDetails()">Enter Personal Details</button>
+    <button (click)="goToGiftSender()">Set Up Gift?</button>
   `,
   styleUrls: ['./blank.component.css']
 })
@@ -23,5 +24,9 @@ export class BlankComponent {
 
   goToPersonalDetails() {
     this.router.navigate(['/personal-details'], { state: { username: this.username } });
+  }
+
+  goToGiftSender() {
+    this.router.navigate(['/gift-sender'], { state: { username: this.username } });
   }
 }
