@@ -39,4 +39,8 @@ export class PersonalDetailsComponent {
         }
       });
   }
+
+  goBack() {
+    this.router.navigate(['/blank']);
+  }
 }
