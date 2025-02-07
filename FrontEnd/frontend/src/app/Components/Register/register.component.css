@@ -83,3 +83,21 @@
     background-color: #ccc;
     cursor: not-allowed;
 }
+
+/* Fabian added this CSS its for the forgot button*/
+.forgot-button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    color: #4995f2;
+    background-color: transparent;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: color 0.3s;
+}
+
+.forgot-button:hover {
+    color: #3172cc;
+}

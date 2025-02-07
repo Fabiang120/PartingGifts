@@ -32,9 +32,15 @@ export class RegisterComponent {
         },
         error: (err) => {
           console.error('Registration error:', err);
-          if (err.error == "Registration failed: UNIQUE constraint failed: users.username\n") this.message = 'Sorry, that username is taken. Please try again.';
-          else this.message = 'Registration failed. Please try again.';
+          if (err.error === "Registration failed: UNIQUE constraint failed: users.username\n")
+            this.message = 'Sorry, that username is taken. Please try again.';
+          else
+            this.message = 'Registration failed. Please try again.';
         }
       });
+  }
+
+  forgotPassword() {
+    this.router.navigate(['/forgot-password']);
   }
 }

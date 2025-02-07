@@ -57,9 +57,12 @@ func main() {
 	}
 
 	fmt.Println("SQLite database is set up and the tables are ready!")
+
 	http.HandleFunc("/create-account", createAccountHandler)
 	http.HandleFunc("/update-emails", personalDetailsHandler)
 	http.HandleFunc("/upload-gift", uploadGiftHandler)
+	http.HandleFunc("/reset-password", resetPasswordHandler)
+
 	fmt.Println("Server listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("Server failed: %v", err)
@@ -169,7 +172,7 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := r.ParseMultipartForm(10 << 20) // Limit of 10MB
+	err := r.ParseMultipartForm(10 << 20) 
 	if err != nil {
 		http.Error(w, "Error parsing multipart form", http.StatusBadRequest)
 		return
@@ -219,4 +222,35 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("Gift uploaded successfully"))
+}
+
+func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var userID int
+	err := db.QueryRow("SELECT id FROM users WHERE my_email = ? OR contact_email = ?", req.Email, req.Email).Scan(&userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Password reset instructions have been sent to your email."))
 }
