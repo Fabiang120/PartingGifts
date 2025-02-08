@@ -61,7 +61,7 @@ func main() {
 	http.HandleFunc("/create-account", createAccountHandler)
 	http.HandleFunc("/update-emails", personalDetailsHandler)
 	http.HandleFunc("/upload-gift", uploadGiftHandler)
-	http.HandleFunc("/reset-password", resetPasswordHandler)
+	http.HandleFunc("/login", loginHandler)
 
 	fmt.Println("Server listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
@@ -172,7 +172,7 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := r.ParseMultipartForm(10 << 20) 
+	err := r.ParseMultipartForm(10 << 20) // Limit of 10MB
 	if err != nil {
 		http.Error(w, "Error parsing multipart form", http.StatusBadRequest)
 		return
@@ -253,4 +253,42 @@ func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Password reset instructions have been sent to your email."))
+}
+
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var credentials struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var storedPassword string
+	err := db.QueryRow("SELECT password FROM users WHERE username = ?", credentials.Username).Scan(&storedPassword)
+	if err != nil {
+		log.Printf("Login error: %v", err)
+		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		return
+	}
+
+	if credentials.Password != storedPassword {
+		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Login successful"))
 }
