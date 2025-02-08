@@ -28,9 +28,11 @@
         <button type="submit" [disabled]="registerForm.invalid" class="submit-button">
             Register
         </button>
-        <!-- Added Forgot Password Button -->
         <button type="button" (click)="forgotPassword()" class="forgot-button">
             Forgot my password?
+        </button>
+        <button type="button" (click)="goToLogin()" class="login-button">
+            Already have an account? Login
         </button>
 
         <p *ngIf="message" class="error-message" style="padding-top: 10px;">
