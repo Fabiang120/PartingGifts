@@ -14,7 +14,6 @@ describe('GiftSenderComponent', () => {
 
         fixture = TestBed.createComponent(GiftSenderComponent);
         component = fixture.componentInstance;
-        // Simulate receiving a username from router state
         component.username = 'testuser';
         fixture.detectChanges();
     });
