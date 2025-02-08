@@ -4,9 +4,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
+	"time"
+
+	"gopkg.in/gomail.v2"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -191,7 +194,7 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	fileData, err := ioutil.ReadAll(file)
+	fileData, err := io.ReadAll(file)
 	if err != nil {
 		http.Error(w, "Error reading file data", http.StatusInternalServerError)
 		return
@@ -218,6 +221,18 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Upload failed: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Start timer to send gift via email after a set delay (e.g., 1 minute for testing)
+	delay := time.Minute * 1 // Change this to your desired delay
+	go func(username, fileName string, fileData []byte) {
+		time.Sleep(delay)
+		err := sendGiftByEmail(username, fileName, fileData)
+		if err != nil {
+			log.Printf("Error sending gift email: %v", err)
+		} else {
+			log.Printf("Gift email sent successfully for user: %s", username)
+		}
+	}(username, header.Filename, fileData)
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
@@ -291,4 +306,35 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Login successful"))
+}
+
+func sendGiftByEmail(username, fileName string, fileData []byte) error {
+	var contactEmail string
+	err := db.QueryRow("SELECT contact_email FROM users WHERE username = ?", username).Scan(&contactEmail)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve contact email: %v", err)
+	}
+
+	smtpHost := "smtp.gmail.com" 
+	smtpPort := 587                  
+	senderEmail := "f3243329@gmail.com"
+	senderPassword := "auca xxpm lziz vrjg"
+
+	m := gomail.NewMessage()
+	m.SetHeader("From", senderEmail)
+	m.SetHeader("To", contactEmail)
+	m.SetHeader("Subject", "Your Parting Gift")
+	m.SetBody("text/plain", fmt.Sprintf("Hello,\n\nPlease find attached your parting gift: %s", fileName))
+	m.Attach(fileName, gomail.SetCopyFunc(func(w io.Writer) error {
+		_, err := w.Write(fileData)
+		return err
+	}))
+
+	d := gomail.NewDialer(smtpHost, smtpPort, senderEmail, senderPassword)
+
+	if err := d.DialAndSend(m); err != nil {
+		return fmt.Errorf("failed to send email: %v", err)
+	}
+
+	return nil
 }

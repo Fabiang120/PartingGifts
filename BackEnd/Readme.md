@@ -7,3 +7,6 @@ For SQLite3 on Windows, download the precompiled binary from the SQLite Download
 The project automatically creates or opens an SQLite database file named app.db. If you want to create a new database manually, open your terminal and type sqlite3 app.db to start the SQLite command-line interface. You can then run SQL commands (like CREATE TABLE IF NOT EXISTS ...) to set up your database schema. This project’s Go code handles this automatically.
 
 Before running the project, execute go mod tidy in the project directory to install all required dependencies. Finally, start the server by running go run main.go. The server will open or create the app.db file, ensure a users table exists (with unique usernames and passwords), and listen on port 8080 for JSON registration requests at the /create-account endpoint, with CORS enabled for requests coming from http://localhost:4200.
+
+
+go get gopkg.in/gomail.v2
