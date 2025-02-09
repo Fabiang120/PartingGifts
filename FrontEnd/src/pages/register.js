@@ -16,6 +16,7 @@ const geistMono = Geist_Mono({
 export default function Home() {
     const [user, setUser] = useState({ firstName: '', lastName: '', username: '', password: '' });
     const [errors, setErrors] = useState({});
+    const [message, setMessage] = useState('');
     const router = useRouter();
 
     const validate = () => {
@@ -40,12 +41,36 @@ export default function Home() {
         return Object.keys(newErrors).length === 0;
     };
 
+    const registerUser = async () => {
+        try {
+            const response = await fetch('http://localhost:8080/create-account', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(user)
+            });
+
+            const result = await response.text();
+
+            if (!response.ok) throw new Error(result);
+
+            console.log(result);
+            router.push('/');
+        } catch (err) {
+            console.log('Registration error:', err);
+            if (err.message.includes('UNIQUE constraint failed: users.username')) {
+              setErrors({username: 'Sorry, that username is taken. Please try again.'});
+            } else {
+              setMessage('Registration failed. Please try again.');
+            }
+        }
+    }
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (validate()) {
-            console.log('Registering user:', user);
-            router.push('/');
-        }
+        setMessage('');
+        if (validate()) registerUser();
     };
 
     const handleForgotPassword = () => {
@@ -120,6 +145,7 @@ export default function Home() {
             <button className="bg-[#00A9C5] text-white rounded-full py-1 px-8" type="submit">
                 Register
             </button>
+            {message && <div className="text-red-500">{message}</div>}
           </form>
         </main>
       </div>
