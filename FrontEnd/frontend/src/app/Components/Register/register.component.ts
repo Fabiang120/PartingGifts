@@ -1,9 +1,18 @@
+// ------------------------------
+// RegisterComponent (register.component.ts)
+// ------------------------------
 import { Component } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
+import { FormsModule } from '@angular/forms';        // Provides support for template-driven forms.
+import { CommonModule } from '@angular/common';       // Provides common Angular directives.
+import { Router } from '@angular/router';             // Used for navigation between routes.
+import { HttpClient } from '@angular/common/http';    // Used to send HTTP requests to the backend.
 
+/*
+  RegisterComponent manages user registration.
+  It collects a username and password from the user, sends a registration request to the backend,
+  and then navigates to the blank page with the username if registration is successful.
+  It also provides navigation options for forgot password and login.
+*/
 @Component({
   selector: 'app-register',
   standalone: true,
@@ -12,14 +21,17 @@ import { HttpClient } from '@angular/common/http';
   styleUrls: ['./register.component.css']
 })
 export class RegisterComponent {
-  user = {
+  user = { // Stores registration details.
     username: '',
     password: ''
   };
-  message = '';
+  message = ''; // Stores messages for user feedback.
 
+  // The constructor injects Router for navigation and HttpClient for backend communication.
   constructor(private router: Router, private http: HttpClient) { }
 
+  // register sends the user's registration details to the backend.
+  // On success, it navigates to the blank page and passes the username.
   register() {
     this.http.post('http://localhost:8080/create-account', this.user, { responseType: 'text' })
       .subscribe({
@@ -41,10 +53,12 @@ export class RegisterComponent {
       });
   }
 
+  // forgotPassword navigates to the forgot-password page.
   forgotPassword() {
     this.router.navigate(['/forgot-password']);
   }
 
+  // goToLogin navigates to the login page.
   goToLogin() {
     this.router.navigate(['/login']);
   }
