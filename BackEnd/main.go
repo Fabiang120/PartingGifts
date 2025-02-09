@@ -16,11 +16,12 @@ import (
 
 // User represents a user in the system. The JSON tags are set so that they match the keys sent by the Angular frontend.
 type User struct {
-	ID           int    `json:"id"`           // The unique ID for the user.
-	Username     string `json:"username"`     // The username of the user.
-	Password     string `json:"password"`     // The user's password.
-	MyEmail      string `json:"myEmail,omitempty"`      // The user's email address (optional).
-	ContactEmail string `json:"contactEmail,omitempty"` // The user's contact email address (optional).
+	ID                      int    `json:"id"`                      // The unique ID for the user.
+	Username                string `json:"username"`                // The username of the user.
+	Password                string `json:"password"`                // The user's password.
+	MyEmail                 string `json:"myEmail,omitempty"`       // The user's own email address.
+	PrimaryContactEmail     string `json:"primaryContactEmail,omitempty"` // The primary contact email.
+	SecondaryContactEmails  string `json:"contactEmail,omitempty"`  // The secondary contact emails, stored as a comma‐separated string.
 }
 
 var db *sql.DB // Global variable for the database connection.
@@ -43,7 +44,8 @@ func main() {
 		username TEXT UNIQUE,
 		password TEXT,
 		my_email TEXT,
-		contact_email TEXT
+		primary_contact_email TEXT,
+		secondary_contact_emails TEXT
 	);
 	`
 	if _, err := db.Exec(createUsersTableSQL); err != nil {
@@ -148,15 +150,15 @@ func personalDetailsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decodes the JSON payload into a User struct.
+	// Decode the JSON payload into a User struct.
 	var user User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	// Prepares the SQL statement to update the email fields for the given username.
-	stmt, err := db.Prepare("UPDATE users SET my_email = ?, contact_email = ? WHERE username = ?")
+	// Prepare the SQL statement to update the email fields for the given username.
+	stmt, err := db.Prepare("UPDATE users SET my_email = ?, primary_contact_email = ?, secondary_contact_emails = ? WHERE username = ?")
 	if err != nil {
 		log.Printf("Error preparing update statement: %v", err)
 		http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
@@ -164,15 +166,15 @@ func personalDetailsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer stmt.Close()
 
-	// Executes the update statement.
-	res, err := stmt.Exec(user.MyEmail, user.ContactEmail, user.Username)
+	// Execute the update statement.
+	res, err := stmt.Exec(user.MyEmail, user.PrimaryContactEmail, user.SecondaryContactEmails, user.Username)
 	if err != nil {
 		log.Printf("Error executing update: %v", err)
 		http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Checks if any rows were affected, to determine if the username existed.
+	// Check if any rows were affected, to determine if the username existed.
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
 		log.Printf("Error retrieving affected rows: %v", err)
@@ -184,11 +186,12 @@ func personalDetailsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Responds with a success message.
+	// Respond with a success message.
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Personal details updated successfully"))
 }
+
 
 // uploadGiftHandler processes file uploads (gifts), inserts the file into the database, and starts a timer to send the gift via email.
 func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
@@ -323,7 +326,7 @@ func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
 
-	// Handles pre-flight OPTIONS request.
+	// Handle pre-flight OPTIONS requests.
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
 		return
@@ -334,7 +337,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decodes the JSON payload containing the username and password.
+	// Decode the JSON payload containing the username and password.
 	var credentials struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -344,50 +347,54 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Retrieves the stored password from the database for the given username.
+	// Retrieve the stored password from the database for the given username.
 	var storedPassword string
 	err := db.QueryRow("SELECT password FROM users WHERE username = ?", credentials.Username).Scan(&storedPassword)
 	if err != nil {
-		log.Printf("Encountered a login error: %v", err)
-		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		// If no rows are returned, the user does not exist.
+		if err == sql.ErrNoRows {
+			log.Printf("No user found with username: %s", credentials.Username)
+			http.Error(w, "User not found", http.StatusNotFound)
+		} else {
+			log.Printf("Encountered a login error: %v", err)
+			http.Error(w, "Login error", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	// Checks if the provided password matches the stored password.
+	// Check if the provided password matches the stored password.
 	if credentials.Password != storedPassword {
 		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		return
 	}
 
-	// Responds with a success message if the credentials are valid.
+	// If credentials are valid, respond with a success message.
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Login successful"))
 }
 
+
 // sendGiftByEmail sends the uploaded gift file to the user's contact email using gomail.
 // It uses a custom email body if provided; otherwise, it uses a default message.
 func sendGiftByEmail(username, fileName string, fileData []byte, customBody string) error {
-	// Retrieves the user's contact email from the database.
+	// Retrieve the user's primary contact email from the database.
 	var contactEmail string
-	err := db.QueryRow("SELECT contact_email FROM users WHERE username = ?", username).Scan(&contactEmail)
+	err := db.QueryRow("SELECT primary_contact_email FROM users WHERE username = ?", username).Scan(&contactEmail)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve contact email: %v", err)
+		return fmt.Errorf("failed to retrieve primary contact email: %v", err)
 	}
 
-	// Sets up SMTP configuration. Replace these values with actual SMTP settings.
 	smtpHost := "smtp.gmail.com"           // SMTP server host.
 	smtpPort := 587                        // SMTP server port.
 	senderEmail := "f3243329@gmail.com"     // Sender's email address.
 	senderPassword := "auca xxpm lziz vrjg"  // Sender's email password.
 
-	// Creates a new email message using gomail.
 	m := gomail.NewMessage()
 	m.SetHeader("From", senderEmail)         // Set the sender's email.
 	m.SetHeader("To", contactEmail)            // Set the recipient's email.
 	m.SetHeader("Subject", "Your Parting Gift") // Set the email subject.
 
-	// Determines the email body. If a custom body is provided, use it; otherwise, use a default message.
 	var body string
 	if customBody != "" {
 		body = customBody
@@ -396,19 +403,16 @@ func sendGiftByEmail(username, fileName string, fileData []byte, customBody stri
 	}
 	m.SetBody("text/plain", body)
 
-	// Attaches the gift file from memory. The file is attached using a copy function.
 	m.Attach(fileName, gomail.SetCopyFunc(func(w io.Writer) error {
 		_, err := w.Write(fileData)
 		return err
 	}))
 
-	// Creates a new dialer with the SMTP settings.
 	d := gomail.NewDialer(smtpHost, smtpPort, senderEmail, senderPassword)
-	// Attempts to send the email.
 	if err := d.DialAndSend(m); err != nil {
 		return fmt.Errorf("failed to send email: %v", err)
 	}
 
-	// Return nil if the email was sent successfully.
 	return nil
 }
+

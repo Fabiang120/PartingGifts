@@ -6,15 +6,28 @@
             <input type="text" [(ngModel)]="details.username" name="username">
         </label>
         <br>
+        <!-- Input for the user's own email -->
         <label>
             My Email:
             <input type="email" [(ngModel)]="details.myEmail" name="myEmail">
         </label>
         <br>
+        <!-- Always show the primary contact email input -->
         <label>
-            Contact Email:
-            <input type="email" [(ngModel)]="details.contactEmail" name="contactEmail">
+            Primary Contact Email:
+            <input type="email" [(ngModel)]="details.primaryContactEmail" name="primaryContactEmail">
         </label>
+        <br>
+        <!-- Dynamic section for secondary contact emails -->
+        <div>
+            <label>Secondary Contact Emails:</label>
+            <div *ngFor="let email of details.secondaryContactEmails; let i = index; trackBy: trackByIndex">
+                <input type="email" [(ngModel)]="details.secondaryContactEmails[i]"
+                    [name]="'secondaryContactEmail' + i">
+                <button type="button" (click)="removeSecondaryEmail(i)">-</button>
+            </div>
+            <button type="button" (click)="addSecondaryEmail()">+</button>
+        </div>
         <br>
         <button type="submit">Submit</button>
     </form>
