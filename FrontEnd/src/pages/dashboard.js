@@ -1,7 +1,13 @@
 import React from "react";
+import { useRouter } from "next/router"; // Import useRouter for navigation
 
 const Dashboard = () => {
   const memoryThumbnails = ["hp1.jpg", "hp2.jpg", "hp3.jpg", "hp4.png", "hp5.jpg"];
+  const router = useRouter(); // Initialize useRouter
+
+  const handleNewMemoryClick = () => {
+    router.push("/new-memory"); // Navigate to the New Memory page
+  };
 
   return (
     <div className="min-h-screen bg-blue-100">
@@ -30,7 +36,10 @@ const Dashboard = () => {
           <p className="mt-2 text-blue-500 hover:underline cursor-pointer">
             View Calendar
           </p>
-          <button className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
+          <button
+            className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            onClick={handleNewMemoryClick} // Add onClick handler for navigation
+          >
             New Memory
           </button>
         </div>
