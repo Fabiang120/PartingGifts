@@ -109,80 +109,104 @@ export default function RegisterPage() {
 
   return (
     <div
-      className={`${geistSans.variable} ${geistMono.variable} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)] bg-[#FAFAFA]`}
+      className={`${geistSans.variable} ${geistMono.variable} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)] bg-blue-100`}
     >
       <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl p-10 text-black border border-gray-300 space-y-6">
-          <img src="https://i.postimg.cc/VsRBMLgn/pglogo.png" className="w-40" alt="logo" />
-          <p className="font-bold text-2xl">Create an account</p>
+        <form onSubmit={handleSubmit} className="p-10 text-black bg-white rounded-lg shadow-md space-y-6">
+          <div className="text-center mb-6">
+            <img
+              src="/PG-icon.png"
+              alt="Parting Gifts Logo"
+              className="mx-auto mb-4 w-24"
+            />
+            <h1 className="text-xl font-bold text-black">Create an account!</h1>
+          </div>
 
           <div className="flex flex-row space-x-8">
             <div className="flex flex-col flex-grow">
-              <label htmlFor="firstName">First Name</label>
+              <label htmlFor="firstName" className="block text-sm font-medium text-black">First Name</label>
               <input
                 type="text"
                 id="firstName"
                 value={user.firstName}
                 onChange={(e) => setUser({ ...user, firstName: e.target.value })}
-                className="border-gray-600 border rounded-lg p-2"
+                className="w-full px-3 py-2 mt-1 border rounded-md text-black focus:outline-none focus:ring focus:ring-blue-300"
+                placeholder="Enter your first name"
+                required
               />
               {errors.firstName && <div className="text-red-500 text-sm">{errors.firstName}</div>}
             </div>
             <div className="flex flex-col flex-grow">
-              <label htmlFor="lastName">Last Name</label>
+              <label htmlFor="lastName" className="block text-sm font-medium text-black">Last Name</label>
               <input
                 type="text"
                 id="lastName"
                 value={user.lastName}
                 onChange={(e) => setUser({ ...user, lastName: e.target.value })}
-                className="border-gray-600 border rounded-lg p-2"
+                className="w-full px-3 py-2 mt-1 border rounded-md text-black focus:outline-none focus:ring focus:ring-blue-300"
+                placeholder="Enter your last name"
+                required
               />
               {errors.lastName && <div className="text-red-500 text-sm">{errors.lastName}</div>}
             </div>
           </div>
 
-          <div className="flex flex-col">
-            <label htmlFor="username">Username</label>
+          <div className="mb-4">
+            <label htmlFor="username" className="block text-sm font-medium text-black">
+              Username
+            </label>
             <input
               type="text"
               id="username"
               value={user.username}
               onChange={(e) => setUser({ ...user, username: e.target.value })}
-              className="border-gray-600 border rounded-lg p-2"
+              className="w-full px-3 py-2 mt-1 border rounded-md text-black focus:outline-none focus:ring focus:ring-blue-300"
+              placeholder="Enter your username"
+              required
             />
             {errors.username && <div className="text-red-500 text-sm">{errors.username}</div>}
           </div>
 
-          <div className="flex flex-col">
-            <label htmlFor="email">Email</label>
+          <div className="mb-4">
+          <label htmlFor="email" className="block text-sm font-medium text-black">
+              Email
+            </label>
             <input
               type="email"
               id="email"
               value={user.email}
               onChange={(e) => setUser({ ...user, email: e.target.value })}
-              className="border-gray-600 border rounded-lg p-2"
+              className="w-full px-3 py-2 mt-1 border rounded-md text-black focus:outline-none focus:ring focus:ring-blue-300"
+              placeholder="Enter your email"
+              required
             />
             {errors.email && <div className="text-red-500 text-sm">{errors.email}</div>}
           </div>
 
-          <div className="flex flex-col">
-            <label htmlFor="password">Password</label>
+          <div className="mb-4">
+          <label htmlFor="password" className="block text-sm font-medium text-black">
+              Password
+            </label>
             <input
               type="password"
               id="password"
               value={user.password}
               onChange={(e) => setUser({ ...user, password: e.target.value })}
-              className="border-gray-600 border rounded-lg p-2"
+              className="w-full px-3 py-2 mt-1 border rounded-md text-black focus:outline-none focus:ring focus:ring-blue-300"
+              placeholder="Enter your password"
+              required
             />
             {errors.password && <div className="text-red-500 text-sm">{errors.password}</div>}
           </div>
 
+          <div className="w-full flex-row flex justify-end">
           <button
             type="submit"
             className="bg-[#00A9C5] text-white rounded-full py-2 px-8 hover:bg-[#0088A3] focus:outline-none"
           >
             Register
           </button>
+          </div>
           {message && <div className="text-red-500 text-sm">{message}</div>}
         </form>
       </main>

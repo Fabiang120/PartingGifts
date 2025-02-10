@@ -61,7 +61,7 @@ const LoginPage = () => {
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 mt-1 border rounded-md focus:outline-none focus:ring focus:ring-blue-300"
+              className="w-full px-3 py-2 mt-1 border rounded-md text-black focus:outline-none focus:ring focus:ring-blue-300"
               placeholder="Enter your username"
               required
             />
@@ -75,13 +75,13 @@ const LoginPage = () => {
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 mt-1 border rounded-md focus:outline-none focus:ring focus:ring-blue-300"
+              className="w-full px-3 py-2 mt-1 border rounded-md text-black focus:outline-none focus:ring focus:ring-blue-300"
               placeholder="Enter your password"
               required
             />
           </div>
           <div className="mb-2 text-sm text-right">
-            <a href="/forgot-password" className="text-red-600 hover:underline">
+            <a href="/forgot-password" className="text-blue-600 hover:underline">
               Forgot password?
             </a>
           </div>
