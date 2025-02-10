@@ -1,10 +1,15 @@
+// pages/new-memory.js
 import React, { useState } from "react";
-import { useRouter } from "next/router"; // Import useRouter for navigation
+import { useRouter } from "next/router";
+import { useAuth } from "./AuthContext"; // adjust the path as needed
 
 const NewMemory = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [message, setMessage] = useState("");
-  const router = useRouter(); // Initialize useRouter
+  const [sendToAll, setSendToAll] = useState(false);
+  const [customMessage, setCustomMessage] = useState("");
+  const router = useRouter();
+  const { user } = useAuth(); // Retrieve the logged in user from context
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
@@ -23,16 +28,36 @@ const NewMemory = () => {
     event.preventDefault();
   };
 
-  const handleUpload = () => {
-    if (selectedFile) {
-      // Simulate a backend upload (replace with API call)
-      console.log("Uploading file:", selectedFile);
-      alert(`Uploaded file: ${selectedFile.name}`);
-      setSelectedFile(null);
-      setMessage("");
-      router.push("/memory-uploaded"); // Navigate to Memory Uploaded page
-    } else {
+  const handleUpload = async () => {
+    if (!selectedFile) {
       alert("No file selected for upload.");
+      return;
+    }
+    if (!user || !user.username) {
+      alert("Username is not defined. Please log in again.");
+      return;
+    }
+    const formData = new FormData();
+    // Use the username from the auth context.
+    formData.append("username", user.username);
+    formData.append("file", selectedFile);
+    formData.append("sendToAll", sendToAll ? "true" : "false");
+    formData.append("emailMessage", !sendToAll ? customMessage : "");
+
+    try {
+      const response = await fetch("http://localhost:8080/upload-gift", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+      const textResponse = await response.text();
+      setMessage(textResponse);
+      router.push("/memory-uploaded");
+    } catch (err) {
+      console.error(err);
+      alert("Upload failed. Please try again.");
     }
   };
 
@@ -67,16 +92,8 @@ const NewMemory = () => {
               className="w-8 mb-4"
             />
             <p className="text-gray-600 text-sm mb-2">Drag a file or upload</p>
-            <input
-              type="file"
-              onChange={handleFileChange}
-              className="hidden"
-              id="fileInput"
-            />
-            <label
-              htmlFor="fileInput"
-              className="text-blue-500 underline cursor-pointer"
-            >
+            <input type="file" onChange={handleFileChange} className="hidden" id="fileInput" />
+            <label htmlFor="fileInput" className="text-blue-500 underline cursor-pointer">
               Select a file
             </label>
           </div>
@@ -115,6 +132,36 @@ const NewMemory = () => {
             </button>
           </div>
         </div>
+
+        {/* Checkbox for sending email to contacts */}
+        <div className="mt-4 flex items-center">
+          <input
+            type="checkbox"
+            id="sendToAll"
+            checked={sendToAll}
+            onChange={(e) => setSendToAll(e.target.checked)}
+            className="mr-2"
+          />
+          <label htmlFor="sendToAll" className="text-sm text-gray-700">
+            Send email to my primary and secondary contacts
+          </label>
+        </div>
+
+        {/* Custom message input */}
+        {!sendToAll && (
+          <div className="mt-4 w-full">
+            <label htmlFor="emailMessage" className="text-sm text-gray-700">
+              Custom Email Message (optional)
+            </label>
+            <textarea
+              id="emailMessage"
+              value={customMessage}
+              onChange={(e) => setCustomMessage(e.target.value)}
+              rows="3"
+              className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring focus:ring-blue-300"
+            />
+          </div>
+        )}
 
         {/* Feedback and Upload Button */}
         {message && <p className="mt-4 text-sm text-green-600">{message}</p>}
