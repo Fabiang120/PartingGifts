@@ -1,27 +1,32 @@
 package main
 
 import (
-	"database/sql"              // Used to interact with the SQLite database.
-	"encoding/json"             // Used to decode JSON requests.
-	"fmt"                       // Provides formatted I/O functions.
-	"io"                        // Provides functions for reading file data.
-	"log"                       // Used for logging errors and informational messages.
-	"net/http"                  // Provides HTTP server and routing functionality.
-	"time"                      // Provides time-related functions such as delays.
+	"database/sql"  // Used to interact with the SQLite database.
+	"encoding/json" // Used to decode JSON requests.
+	"fmt"           // Provides formatted I/O functions.
+	"io"            // Provides functions for reading file data.
+	"log"           // Used for logging errors and informational messages.
+	"net/http"      // Provides HTTP server and routing functionality.
+	"time"          // Provides time-related functions such as delays.
 
-	"gopkg.in/gomail.v2"         // Used for sending emails with attachments.
+	"gopkg.in/gomail.v2" // Used for sending emails with attachments.
 
 	_ "github.com/mattn/go-sqlite3" // SQLite3 driver for database connectivity.
+
+	"regexp"  //NEW: Added for username validation
+	"unicode" //NEW: Added for password validation
+
+	"golang.org/x/crypto/bcrypt" //NEW: Added for password hashing
 )
 
 // User represents a user in the system. The JSON tags are set so that they match the keys sent by the Angular frontend.
 type User struct {
-	ID                      int    `json:"id"`                      // The unique ID for the user.
-	Username                string `json:"username"`                // The username of the user.
-	Password                string `json:"password"`                // The user's password.
-	MyEmail                 string `json:"myEmail,omitempty"`       // The user's own email address.
-	PrimaryContactEmail     string `json:"primaryContactEmail,omitempty"` // The primary contact email.
-	SecondaryContactEmails  string `json:"contactEmail,omitempty"`  // The secondary contact emails, stored as a comma‐separated string.
+	ID                     int    `json:"id"`                            // The unique ID for the user.
+	Username               string `json:"username"`                      // The username of the user.
+	Password               string `json:"password"`                      // The user's password.
+	MyEmail                string `json:"myEmail,omitempty"`             // The user's own email address.
+	PrimaryContactEmail    string `json:"primaryContactEmail,omitempty"` // The primary contact email.
+	SecondaryContactEmails string `json:"contactEmail,omitempty"`        // The secondary contact emails, stored as a comma‐separated string.
 }
 
 var db *sql.DB // Global variable for the database connection.
@@ -75,6 +80,7 @@ func main() {
 	http.HandleFunc("/update-emails", personalDetailsHandler)
 	http.HandleFunc("/upload-gift", uploadGiftHandler)
 	http.HandleFunc("/login", loginHandler)
+	http.HandleFunc("/reset-password", resetPasswordHandler)
 
 	// Start the HTTP server on port 8080.
 	fmt.Println("Server listening on http://localhost:8080")
@@ -83,56 +89,90 @@ func main() {
 	}
 }
 
+// NEW: function to validate username(4-20 characters,only letters,numbers,underscores)
+func isValidUsername(username string) bool {
+	matched, _ := regexp.MatchString(`^[a-zA-Z0-9_]{4,20}$`, username)
+	return matched
+}
+
+// NEW: function to validate password
+func isValidPassword(password string) bool {
+	var hasLetter, hasNumber, hasSpecial bool
+
+	for _, char := range password {
+		switch {
+		case unicode.IsLetter(char):
+			hasLetter = true
+		case unicode.IsNumber(char):
+			hasNumber = true
+		case unicode.IsPunct(char) || unicode.IsSymbol(char):
+			hasSpecial = true
+		}
+	}
+	return len(password) >= 8 && hasLetter && hasNumber && hasSpecial
+}
+
+// NEW: username validation,password validation adn password hashing
+func createAccountHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+	//handles pre flight OPTIONS requests
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	//only allows POST requests
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+	// Decodes the JSON payload into a User struct.
+	var user User
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		http.Error(w, "Invalid username. Must be 4-20 characters,only letters,numbers and underscore.", http.StatusBadRequest)
+		return
+	}
+	if !isValidPassword(user.Password) {
+		http.Error(w, "Invalid Password.Must be  at least 8 characters with a mix of letters,numbers and special characters.", http.StatusBadRequest)
+		return
+	}
+
+	//NEW: check if username already exists
+	var existingID int
+	err := db.QueryRow("SELECT id FROM users WHERE username = ?", user.Username).Scan(&existingID)
+	if err == nil { // If a row is found, username exists
+		http.Error(w, "Username is taken. Please choose another.", http.StatusConflict)
+		return
+	}
+	// NEW: Hash the password before storing it
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, "Error hashing password", http.StatusInternalServerError)
+		return
+	}
+
+	// NEW: Store hashed password instead of plain text
+	stmt, err := db.Prepare("INSERT INTO users(username, password) VALUES(?, ?)")
+	if err != nil {
+		http.Error(w, "Registration failed", http.StatusInternalServerError)
+		return
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(user.Username, hashedPassword) // ✅ NEW: Using hashed password
+	if err != nil {
+		http.Error(w, "Registration failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("Account created successfully"))
+}
+
 // enableCors sets the CORS headers so that the Angular frontend (http://localhost:4200) is allowed to access the backend.
 func enableCors(w *http.ResponseWriter) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "http://localhost:4200")
 	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
 	(*w).Header().Set("Access-Control-Allow-Headers", "Content-Type")
-}
-
-// createAccountHandler processes registration requests by decoding the JSON payload and inserting a new user into the database.
-func createAccountHandler(w http.ResponseWriter, r *http.Request) {
-	enableCors(&w)
-
-	// Handles pre-flight OPTIONS request.
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-	// Only allow POST requests.
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Decodes the JSON payload into a User struct.
-	var user User
-	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Prepares the SQL statement to insert a new user.
-	stmt, err := db.Prepare("INSERT INTO users(username, password) VALUES(?, ?)")
-	if err != nil {
-		log.Printf("Error preparing statement: %v", err)
-		http.Error(w, fmt.Sprintf("Registration failed: %v", err), http.StatusInternalServerError)
-		return
-	}
-	defer stmt.Close()
-
-	// Executes the statement to add the user to the database.
-	_, err = stmt.Exec(user.Username, user.Password)
-	if err != nil {
-		log.Printf("Error executing statement: %v", err)
-		http.Error(w, fmt.Sprintf("Registration failed: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Responds with a success message.
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("Account created successfully"))
 }
 
 // personalDetailsHandler updates a user's email details by decoding the JSON payload and updating the database record.
@@ -191,7 +231,6 @@ func personalDetailsHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Personal details updated successfully"))
 }
-
 
 // uploadGiftHandler processes file uploads (gifts), inserts the file into the database, and starts a timer to send the gift via email.
 func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
@@ -374,7 +413,6 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Login successful"))
 }
 
-
 // sendGiftByEmail sends the uploaded gift file to the user's contact email using gomail.
 // It uses a custom email body if provided; otherwise, it uses a default message.
 func sendGiftByEmail(username, fileName string, fileData []byte, customBody string) error {
@@ -385,14 +423,14 @@ func sendGiftByEmail(username, fileName string, fileData []byte, customBody stri
 		return fmt.Errorf("failed to retrieve primary contact email: %v", err)
 	}
 
-	smtpHost := "smtp.gmail.com"           // SMTP server host.
-	smtpPort := 587                        // SMTP server port.
+	smtpHost := "smtp.gmail.com"            // SMTP server host.
+	smtpPort := 587                         // SMTP server port.
 	senderEmail := "f3243329@gmail.com"     // Sender's email address.
-	senderPassword := "auca xxpm lziz vrjg"  // Sender's email password.
+	senderPassword := "auca xxpm lziz vrjg" // Sender's email password.
 
 	m := gomail.NewMessage()
-	m.SetHeader("From", senderEmail)         // Set the sender's email.
-	m.SetHeader("To", contactEmail)            // Set the recipient's email.
+	m.SetHeader("From", senderEmail)            // Set the sender's email.
+	m.SetHeader("To", contactEmail)             // Set the recipient's email.
 	m.SetHeader("Subject", "Your Parting Gift") // Set the email subject.
 
 	var body string
@@ -415,4 +453,3 @@ func sendGiftByEmail(username, fileName string, fileData []byte, customBody stri
 
 	return nil
 }
-
