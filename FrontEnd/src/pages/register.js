@@ -13,50 +13,82 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export default function Home() {
+export default function RegisterPage() {
+  // The form still collects firstName and lastName for display;
+  // however, only username, password, and email (mapped to myEmail) are sent.
   const [user, setUser] = useState({ firstName: '', lastName: '', username: '', email: '', password: '' });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState('');
   const router = useRouter();
 
+  // Validate the form fields.
   const validate = () => {
     const newErrors = {};
 
-    if (!user.username) newErrors.username = 'Username is required.';
-    else if (user.username.length < 4) newErrors.username = 'Minimum 4 characters required.';
-    else if (user.username.length > 20) newErrors.username = 'Maximum 20 characters allowed.';
-    else if (!/^[a-zA-Z0-9_]+$/.test(user.username)) newErrors.username = 'Only letters, numbers, and underscores allowed.';
+    if (!user.username) {
+      newErrors.username = 'Username is required.';
+    } else if (user.username.length < 4) {
+      newErrors.username = 'Minimum 4 characters required.';
+    } else if (user.username.length > 20) {
+      newErrors.username = 'Maximum 20 characters allowed.';
+    } else if (!/^[a-zA-Z0-9_]+$/.test(user.username)) {
+      newErrors.username = 'Only letters, numbers, and underscores allowed.';
+    }
 
-    if (!user.email) newErrors.email = 'Email is required.';
-    else if (!/\S+@\S+\.\S+/.test(user.email)) newErrors.email = 'Invalid email format.';
+    if (!user.email) {
+      newErrors.email = 'Email is required.';
+    } else if (!/\S+@\S+\.\S+/.test(user.email)) {
+      newErrors.email = 'Invalid email format.';
+    }
 
-    if (!user.firstName) newErrors.firstName = 'First name is required.';
-    else if (!/^[a-zA-Z]+$/.test(user.firstName)) newErrors.firstName = 'Only letters are allowed.';
+    if (!user.firstName) {
+      newErrors.firstName = 'First name is required.';
+    } else if (!/^[a-zA-Z]+$/.test(user.firstName)) {
+      newErrors.firstName = 'Only letters are allowed.';
+    }
 
-    if (!user.lastName) newErrors.lastName = 'Last name is required.';
-    else if (!/^[a-zA-Z]+$/.test(user.lastName)) newErrors.lastName = 'Only letters are allowed.';
+    if (!user.lastName) {
+      newErrors.lastName = 'Last name is required.';
+    } else if (!/^[a-zA-Z]+$/.test(user.lastName)) {
+      newErrors.lastName = 'Only letters are allowed.';
+    }
 
-    if (!user.password) newErrors.password = 'Password is required.';
-    else if (user.password.length < 8) newErrors.password = 'Password must be at least 8 characters.';
+    if (!user.password) {
+      newErrors.password = 'Password is required.';
+    } else if (user.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters.';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // Send a POST request to the backend using the expected keys.
   const registerUser = async () => {
     try {
+      // Create a payload matching your backend's expected fields:
+      //   - username
+      //   - password
+      //   - myEmail (mapped from our "email" field)
+      const payload = {
+        username: user.username,
+        password: user.password,
+        myEmail: user.email,
+      };
+
       const response = await fetch('http://localhost:8080/create-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(user),
+        body: JSON.stringify(payload),
       });
 
       const result = await response.text();
 
       if (!response.ok) throw new Error(result);
 
+      // On success, navigate to the home page.
       router.push('/');
     } catch (err) {
       if (err.message.includes('UNIQUE constraint failed: users.username')) {
@@ -70,11 +102,15 @@ export default function Home() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setMessage('');
-    if (validate()) registerUser();
+    if (validate()) {
+      registerUser();
+    }
   };
 
   return (
-    <div className={`${geistSans.variable} ${geistMono.variable} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)] bg-[#FAFAFA]`}>
+    <div
+      className={`${geistSans.variable} ${geistMono.variable} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)] bg-[#FAFAFA]`}
+    >
       <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
         <form onSubmit={handleSubmit} className="bg-white rounded-xl p-10 text-black border border-gray-300 space-y-6">
           <img src="https://i.postimg.cc/VsRBMLgn/pglogo.png" className="w-40" alt="logo" />

@@ -9,6 +9,10 @@ const Dashboard = () => {
     router.push("/new-memory"); // Navigate to the New Memory page
   };
 
+  const handleUserProfileClick = () => {
+    router.push("/personal-details"); // Navigate to the Personal Details page
+  };
+
   return (
     <div className="min-h-screen bg-blue-100">
       {/* Header Section */}
@@ -19,7 +23,10 @@ const Dashboard = () => {
           className="w-36"
         />
         <div>
-          <button className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            onClick={handleUserProfileClick}  // Navigate to Personal Details
+          >
             User Profile
           </button>
         </div>
@@ -38,7 +45,7 @@ const Dashboard = () => {
           </p>
           <button
             className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-            onClick={handleNewMemoryClick} // Add onClick handler for navigation
+            onClick={handleNewMemoryClick} // Navigate to New Memory
           >
             New Memory
           </button>
