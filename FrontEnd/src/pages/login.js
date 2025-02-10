@@ -21,7 +21,7 @@ const LoginPage = () => {
       <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-md">
         <div className="text-center mb-6">
           <img
-            src="/logo.png" // Replace with the actual path to your logo
+            src="/PG-icon.png" // Replace with the actual path to your logo
             alt="Parting Gifts Logo"
             className="mx-auto mb-4 w-24"
           />

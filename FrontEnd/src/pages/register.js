@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export default function Home() {
-  const [user, setUser] = useState({ firstName: '', lastName: '', username: '', password: '' });
+  const [user, setUser] = useState({ firstName: '', lastName: '', username: '', email: '', password: '' });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState('');
   const router = useRouter();
@@ -26,6 +26,9 @@ export default function Home() {
     else if (user.username.length < 4) newErrors.username = 'Minimum 4 characters required.';
     else if (user.username.length > 20) newErrors.username = 'Maximum 20 characters allowed.';
     else if (!/^[a-zA-Z0-9_]+$/.test(user.username)) newErrors.username = 'Only letters, numbers, and underscores allowed.';
+
+    if (!user.email) newErrors.email = 'Email is required.';
+    else if (!/\S+@\S+\.\S+/.test(user.email)) newErrors.email = 'Invalid email format.';
 
     if (!user.firstName) newErrors.firstName = 'First name is required.';
     else if (!/^[a-zA-Z]+$/.test(user.firstName)) newErrors.firstName = 'Only letters are allowed.';
@@ -112,6 +115,18 @@ export default function Home() {
               className="border-gray-600 border rounded-lg p-2"
             />
             {errors.username && <div className="text-red-500 text-sm">{errors.username}</div>}
+          </div>
+
+          <div className="flex flex-col">
+            <label htmlFor="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              value={user.email}
+              onChange={(e) => setUser({ ...user, email: e.target.value })}
+              className="border-gray-600 border rounded-lg p-2"
+            />
+            {errors.email && <div className="text-red-500 text-sm">{errors.email}</div>}
           </div>
 
           <div className="flex flex-col">
