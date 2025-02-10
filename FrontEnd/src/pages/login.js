@@ -1,114 +1,85 @@
-import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
-import { useState } from "react";
-import { useRouter } from "next/router";
+import React, { useState } from 'react';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+const LoginPage = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export default function Home() {
-    const [user, setUser] = useState({ username: '', password: '' });
-    const [errors, setErrors] = useState({});
-    const [message, setMessage] = useState('');
-    const router = useRouter();
-
-    const validate = () => {
-        const newErrors = {};
-
-        if (!user.username) newErrors.username = 'Username is required.';
-
-        if (!user.password) newErrors.password = 'Password is required.';
-
-        console.log(newErrors);
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-    const loginUser = async () => {
-        try {
-            const response = await fetch('http://localhost:8080/login', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(user)
-            });
-
-            const result = await response.text();
-
-            if (!response.ok) throw new Error(result);
-
-            console.log(result);
-            router.push('/');
-        } catch (err) {
-            console.log('Login error:', err);
-            setMessage(err.message);
-        }
+  const handleLogin = (e) => {
+    e.preventDefault();
+    // Mock validation (replace with actual API call)
+    if (email === 'user@example.com' && password === 'password123') {
+      setError('');
+      alert('Login successful!'); // Redirect to another page or handle success
+    } else {
+      setError('You have entered the wrong details. Please re-enter.');
     }
+  };
 
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        setMessage('');
-        if (validate()) loginUser();
-    };
-
-    const handleForgotPassword = () => {
-        console.log('Redirecting to forgot password...');
-    };
-
-    return (
-      <div className={`${geistSans.variable} ${geistMono.variable} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)] bg-[#FAFAFA]`}>
-        <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-          <form onSubmit={handleSubmit} className="bg-white rounded-xl p-10 text-black border border-gray-300 space-y-2">
-            <img src="https://i.postimg.cc/VsRBMLgn/pglogo.png" className="w-40" alt="logo"/>
-            <p className="font-bold text-2xl">Login</p>
-
-            <div className="flex flex-col">
-                <label htmlFor="username">Username</label>
-                <input
-                    type="text"
-                    id="username"
-                    name="username"
-                    value={user.username}
-                    onChange={(e) => setUser({ ...user, username: e.target.value })}
-                    className="border-gray-600 border rounded-lg p-1"
-                />
-                {errors.username && <div className="text-red-500">{errors.username}</div>}
-            </div>
-
-            <div className="flex flex-col">
-                <label htmlFor="password">Password</label>
-                <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    value={user.password}
-                    onChange={(e) => setUser({ ...user, password: e.target.value })}
-                    className="border-gray-600 border rounded-lg p-1"
-                />
-                {errors.password && <div className="text-red-500">{errors.password}</div>}
-            </div>
-
-            <button className="underline px-2" type="button" onClick={handleForgotPassword}>
-                Forgot my password?
-            </button>
-            <button className="underline px-2" type="button" onClick={() => router.push('/register')}>
-                New user? Register an account
-            </button>
-            <button className="bg-[#00A9C5] text-white rounded-full py-1 px-8" type="submit">
-                Register
-            </button>
-            {message && <div className="text-red-500">{message}</div>}
-          </form>
-        </main>
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-blue-100">
+      <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-md">
+        <div className="text-center mb-6">
+          <img
+            src="/logo.png" // Replace with the actual path to your logo
+            alt="Parting Gifts Logo"
+            className="mx-auto mb-4 w-24"
+          />
+          <h1 className="text-xl font-bold text-black">Welcome Back!</h1>
+        </div>
+        <form onSubmit={handleLogin}>
+          <div className="mb-4">
+            <label htmlFor="email" className="block text-sm font-medium text-black">
+              Email
+            </label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-3 py-2 mt-1 border rounded-md focus:outline-none focus:ring focus:ring-blue-300"
+              placeholder="Enter your email"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="password" className="block text-sm font-medium text-black">
+              Password
+            </label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 mt-1 border rounded-md focus:outline-none focus:ring focus:ring-blue-300"
+              placeholder="Enter your password"
+              required
+            />
+          </div>
+          <div className="mb-2 text-sm text-right">
+            <a href="/forgot-password" className="text-red-600 hover:underline">
+              forgot password?
+            </a>
+          </div>
+          {error && (
+            <p className="mb-4 text-sm text-red-600">{error}</p>
+          )}
+          <button
+            type="submit"
+            className="w-full px-4 py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 focus:outline-none focus:ring focus:ring-blue-300"
+          >
+            Log in
+          </button>
+        </form>
+        <div className="mt-4 text-center text-sm text-black">
+          New to Parting Gifts?{' '}
+          <a href="/register" className="text-blue-600 hover:underline">
+            Sign up
+          </a>
+        </div>
       </div>
-    );
-}
+    </div>
+  );
+};
+
+export default LoginPage;

@@ -1,27 +1,43 @@
-import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
-import { useState } from "react";
-import { useRouter } from "next/router";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import Image from 'next/image'; 
+import Link from 'next/link';
 
 export default function Home() {
-    const router = useRouter();
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-white p-8">
+      {/* Logo */}
+      <h1 className="text-4xl font-bold text-blue-600 flex items-center gap-2">
+        <img src="/PG-icon.png" alt="Parting Gifts Logo" className="h-12" />
+        Parting <span className="text-blue-400">Gifts</span>
+      </h1>
 
-    return (
-      <div className={`${geistSans.variable} ${geistMono.variable} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)] bg-[#FAFAFA]`}>
-        <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start text-black">
-          <p>Default Screen</p>
-          <button className="w-full bg-blue-100 rounded-full" onClick={() => router.push('/register')}>Register</button>
-        </main>
+      {/* Content Container */}
+      <div className="mt-8 flex items-center max-w-4xl mx-auto">
+        {/* Left Section - Text */}
+        <div className="bg-blue-100 p-6 rounded-lg w-1/2">
+          <p className="text-lg text-gray-700">
+            Parting Gifts is a heartfelt platform designed to preserve and share love, wisdom, and memories.
+            Our mission is to help individuals leave meaningful video messages for their loved ones,
+            creating a lasting connection that transcends time and space.
+            <br />
+            <br />
+            More than just a website, it ensures your voice and emotions are always remembered.
+          </p>
+        </div>
+
+        {/* Right Section - Image */}
+        <div className="w-1/2 flex justify-center">
+          <Image src="/indeximg1.jpg" alt="Friends smiling" width={400} height={300} className="rounded-lg shadow-lg" />
+        </div>
       </div>
-    );
+
+      {/* Login Button */}
+      <div className="mt-6">
+        <Link href="/login">
+          <button className="bg-blue-500 text-white px-6 py-3 rounded-md text-lg font-semibold hover:bg-blue-600">
+            Log in
+          </button>
+        </Link>
+      </div>
+    </div>
+  );
 }
