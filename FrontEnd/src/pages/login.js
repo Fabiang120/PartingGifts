@@ -1,4 +1,3 @@
-// pages/login.js
 import React, { useState } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "./AuthContext"; // adjust the path as needed
@@ -22,18 +21,22 @@ const LoginPage = () => {
       });
 
       if (!response.ok) {
-        // If the response is not OK, throw an error.
         throw new Error("Invalid username or password");
       }
 
-      const text = await response.text();
-      console.log("Login response:", text);
+      // Parse the JSON response.
+      const data = await response.json();
+      console.log("Login response:", data);
 
       // Store the logged in user info in the context.
       setUser({ username });
 
-      // Redirect to the dashboard (or any protected page)
-      router.push("/dashboard");
+      // Redirect based on the forceChange flag.
+      if (data.forceChange) {
+        router.push("/forcechange");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err) {
       console.error("Login error:", err);
       setError("Login failed. Please try again.");
@@ -53,7 +56,10 @@ const LoginPage = () => {
         </div>
         <form onSubmit={handleLogin}>
           <div className="mb-4">
-            <label htmlFor="username" className="block text-sm font-medium text-black">
+            <label
+              htmlFor="username"
+              className="block text-sm font-medium text-black"
+            >
               Username
             </label>
             <input
@@ -67,7 +73,10 @@ const LoginPage = () => {
             />
           </div>
           <div className="mb-4">
-            <label htmlFor="password" className="block text-sm font-medium text-black">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-black"
+            >
               Password
             </label>
             <input

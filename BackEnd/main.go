@@ -3,6 +3,8 @@ package main
 import (
     "database/sql"
     "encoding/json"
+    "crypto/rand"
+    "math/big"
     "fmt"
     "io"
     "log"
@@ -44,9 +46,12 @@ func main() {
         password TEXT,
         my_email TEXT,
         primary_contact_email TEXT,
-        secondary_contact_emails TEXT
+        secondary_contact_emails TEXT,
+        force_password_change BOOLEAN DEFAULT 0
     );
     `
+
+    
     if _, err := db.Exec(createUsersTableSQL); err != nil {
         log.Fatalf("Failed to create users table: %v", err)
     }
@@ -78,6 +83,20 @@ func main() {
     if err := http.ListenAndServe(":8080", nil); err != nil {
         log.Fatalf("Server failed: %v", err)
     }
+}
+
+func generateRandomPassword(length int) (string, error) {
+    const charset = "abcdefghijklmnopqrstuvwxyz" +
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+"
+    password := make([]byte, length)
+    for i := range password {
+        num, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+        if err != nil {
+            return "", err
+        }
+        password[i] = charset[num.Int64()]
+    }
+    return string(password), nil
 }
 
 func enableCors(w *http.ResponseWriter) {
@@ -217,16 +236,62 @@ func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Invalid request body", http.StatusBadRequest)
         return
     }
+    
+    // Look up user by email
     var userID int
-    err := db.QueryRow("SELECT id FROM users WHERE my_email = ? OR contact_email = ?", req.Email, req.Email).Scan(&userID)
+    var currentHash string
+    err := db.QueryRow("SELECT id, password FROM users WHERE my_email = ? OR secondary_contact_emails = ?", req.Email, req.Email).Scan(&userID, &currentHash)
     if err != nil {
         http.Error(w, "User not found", http.StatusNotFound)
         return
     }
+    
+    newPassword, err := generateRandomPassword(12)
+    if err != nil {
+        http.Error(w, "Error generating new password", http.StatusInternalServerError)
+        return
+    }
+    
+    // Hash the new password.
+    hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+    if err != nil {
+        http.Error(w, "Error generating password", http.StatusInternalServerError)
+        return
+    }
+    
+    // Update the user's password in the database.
+    _, err = db.Exec("UPDATE users SET password = ? WHERE id = ?", hashed, userID)
+    if err != nil {
+        http.Error(w, "Error updating password", http.StatusInternalServerError)
+        return
+    }
+    
+    // Now send the new password by email.
+    smtpHost := "smtp.gmail.com"
+    smtpPort := 587
+    senderEmail := "f3243329@gmail.com"
+    senderPassword := "auca xxpm lziz vrjg"
+    
+    m := gomail.NewMessage()
+    m.SetHeader("From", senderEmail)
+    m.SetHeader("Subject", "Your New Password")
+    m.SetHeader("To", req.Email)
+    body := fmt.Sprintf("Hello,\n\nYour new password is: %s", newPassword)
+    m.SetBody("text/plain", body)
+    
+    d := gomail.NewDialer(smtpHost, smtpPort, senderEmail, senderPassword)
+    if err := d.DialAndSend(m); err != nil {
+        log.Printf("Failed to send email for user %s: %v", req.Email, err)
+        fmt.Println("Failed to send email")
+    } else {
+        fmt.Println("Succeeded")
+    }
+    
     w.Header().Set("Content-Type", "text/plain")
     w.WriteHeader(http.StatusOK)
     w.Write([]byte("Password reset instructions have been sent to your email."))
 }
+
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
     enableCors(&w)

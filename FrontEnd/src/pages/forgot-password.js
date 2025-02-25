@@ -6,18 +6,36 @@ const ForgotPassword = () => {
   const [message, setMessage] = useState("");
   const router = useRouter();
 
-  const handleResetPassword = (e) => {
+  const handleResetPassword = async (e) => {
     e.preventDefault();
-    // Placeholder for API call to send a reset password link
+    setMessage("");
+
     if (!email) {
       setMessage("Please enter your email address.");
       return;
     }
-    setMessage("If this email exists in our system, a reset link has been sent.");
+
+    try {
+      const response = await fetch("http://localhost:8080/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.text();
+      if (response.ok) {
+        setMessage(data);
+      } else {
+        setMessage(data || "Failed to send email.");
+      }
+    } catch (error) {
+      setMessage("Something went wrong. Please try again later.");
+    }
   };
 
   const handleLoginLink = () => {
-    // Placeholder for API call to send a login link
     if (!email) {
       setMessage("Please enter your email address.");
       return;
@@ -38,8 +56,7 @@ const ForgotPassword = () => {
         </div>
         <form onSubmit={handleResetPassword}>
           <p className="mb-4 text-sm text-gray-700">
-            Enter the email address you use on Parting Gifts. We’ll send you a
-            link to reset your password.
+            Enter the email address you use on Parting Gifts. We’ll generate a new password for you and send it to your email.
           </p>
           <div className="flex flex-col mb-4">
             <label htmlFor="email" className="text-sm font-medium text-black">
