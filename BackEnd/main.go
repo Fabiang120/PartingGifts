@@ -23,7 +23,6 @@ type User struct {
     ID                     int    `json:"id"`
     Username               string `json:"username"`
     Password               string `json:"password"`
-    MyEmail                string `json:"myEmail,omitempty"`
     PrimaryContactEmail    string `json:"primaryContactEmail,omitempty"`
     SecondaryContactEmails string `json:"contactEmail,omitempty"`
 }
@@ -40,11 +39,10 @@ func main() {
 
     // Create tables if they do not exist.
     createUsersTableSQL := `
-    CREATE TABLE IF NOT EXISTS users (
+        CREATE TABLE IF NOT EXISTS users (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
         password TEXT,
-        my_email TEXT,
         primary_contact_email TEXT,
         secondary_contact_emails TEXT,
         force_password_change BOOLEAN DEFAULT 0
@@ -78,7 +76,8 @@ func main() {
     http.HandleFunc("/upload-gift", uploadGiftHandler)
     http.HandleFunc("/login", loginHandler)
     http.HandleFunc("/reset-password", resetPasswordHandler)
-
+    http.HandleFunc("/change-password", changePasswordHandler)
+    
     fmt.Println("Server listening on http://localhost:8080")
     if err := http.ListenAndServe(":8080", nil); err != nil {
         log.Fatalf("Server failed: %v", err)
@@ -139,14 +138,14 @@ func createAccountHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    stmt, err := db.Prepare("INSERT INTO users(username, password) VALUES(?, ?)")
+    stmt, err := db.Prepare("INSERT INTO users(username, password, primary_contact_email) VALUES(?, ?, ?)")
     if err != nil {
         http.Error(w, "Registration failed", http.StatusInternalServerError)
         return
     }
     defer stmt.Close()
 
-    _, err = stmt.Exec(user.Username, hashedPassword)
+    _, err = stmt.Exec(user.Username, hashedPassword, user.PrimaryContactEmail)
     if err != nil {
         http.Error(w, "Registration failed", http.StatusInternalServerError)
         return
@@ -191,14 +190,15 @@ func personalDetailsHandler(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Invalid request body", http.StatusBadRequest)
         return
     }
-    stmt, err := db.Prepare("UPDATE users SET my_email = ?, primary_contact_email = ?, secondary_contact_emails = ? WHERE username = ?")
+    // Update only primary_contact_email and secondary_contact_emails
+    stmt, err := db.Prepare("UPDATE users SET primary_contact_email = ?, secondary_contact_emails = ? WHERE username = ?")
     if err != nil {
         log.Printf("Error preparing update statement: %v", err)
         http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
         return
     }
     defer stmt.Close()
-    res, err := stmt.Exec(user.MyEmail, user.PrimaryContactEmail, user.SecondaryContactEmails, user.Username)
+    res, err := stmt.Exec(user.PrimaryContactEmail, user.SecondaryContactEmails, user.Username)
     if err != nil {
         log.Printf("Error executing update: %v", err)
         http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
@@ -219,6 +219,7 @@ func personalDetailsHandler(w http.ResponseWriter, r *http.Request) {
     w.Write([]byte("Personal details updated successfully"))
 }
 
+
 func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
     enableCors(&w)
     if r.Method == http.MethodOptions {
@@ -237,10 +238,10 @@ func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    // Look up user by email
+    // Look up user by primary_contact_email (or secondary_contact_emails if needed)
     var userID int
     var currentHash string
-    err := db.QueryRow("SELECT id, password FROM users WHERE my_email = ? OR secondary_contact_emails = ?", req.Email, req.Email).Scan(&userID, &currentHash)
+    err := db.QueryRow("SELECT id, password FROM users WHERE primary_contact_email = ? OR secondary_contact_emails = ?", req.Email, req.Email).Scan(&userID, &currentHash)
     if err != nil {
         http.Error(w, "User not found", http.StatusNotFound)
         return
@@ -259,14 +260,14 @@ func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    // Update the user's password in the database.
-    _, err = db.Exec("UPDATE users SET password = ? WHERE id = ?", hashed, userID)
+    // Update the user's password and set force_password_change to true.
+    _, err = db.Exec("UPDATE users SET password = ?, force_password_change = 1 WHERE id = ?", hashed, userID)
     if err != nil {
         http.Error(w, "Error updating password", http.StatusInternalServerError)
         return
     }
     
-    // Now send the new password by email.
+    // Send the new password by email.
     smtpHost := "smtp.gmail.com"
     smtpPort := 587
     senderEmail := "f3243329@gmail.com"
@@ -276,7 +277,7 @@ func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
     m.SetHeader("From", senderEmail)
     m.SetHeader("Subject", "Your New Password")
     m.SetHeader("To", req.Email)
-    body := fmt.Sprintf("Hello,\n\nYour new password is: %s", newPassword)
+    body := fmt.Sprintf("Hello,\n\nYour new password is: %s\n\nYou will be required to change your password on next login.", newPassword)
     m.SetBody("text/plain", body)
     
     d := gomail.NewDialer(smtpHost, smtpPort, senderEmail, senderPassword)
@@ -291,6 +292,7 @@ func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusOK)
     w.Write([]byte("Password reset instructions have been sent to your email."))
 }
+
 
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -311,8 +313,13 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Invalid request body", http.StatusBadRequest)
         return
     }
+    
     var storedPassword string
-    err := db.QueryRow("SELECT password FROM users WHERE username = ?", credentials.Username).Scan(&storedPassword)
+    var forceChange bool
+    var userID int
+    
+    err := db.QueryRow("SELECT id, password, force_password_change FROM users WHERE username = ?", 
+                      credentials.Username).Scan(&userID, &storedPassword, &forceChange)
     if err != nil {
         if err == sql.ErrNoRows {
             log.Printf("No user found with username: %s", credentials.Username)
@@ -323,14 +330,82 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
         }
         return
     }
+    
     err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(credentials.Password))
     if err != nil {
         http.Error(w, "Invalid username or password", http.StatusUnauthorized)
         return
     }
-    w.Header().Set("Content-Type", "text/plain")
+    
+    // Return JSON with force_password_change flag
+    response := struct {
+        Message string `json:"message"`
+        ForceChange bool `json:"forceChange"`
+    }{
+        Message: "Login successful",
+        ForceChange: forceChange,
+    }
+    
+    w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusOK)
-    w.Write([]byte("Login successful"))
+    json.NewEncoder(w).Encode(response)
+}
+
+func changePasswordHandler(w http.ResponseWriter, r *http.Request) {
+    enableCors(&w)
+    if r.Method == http.MethodOptions {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+    if r.Method != http.MethodPost {
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return
+    }
+    
+    var req struct {
+        Username    string `json:"username"`
+        NewPassword string `json:"newPassword"`
+    }
+    
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+    
+    if !isValidPassword(req.NewPassword) {
+        http.Error(w, "Invalid Password. Must be at least 8 characters with a mix of letters, numbers and special characters.", http.StatusBadRequest)
+        return
+    }
+    
+    // Hash the new password
+    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+    if err != nil {
+        http.Error(w, "Error hashing password", http.StatusInternalServerError)
+        return
+    }
+    
+    // Update the password and reset the force_password_change flag
+    result, err := db.Exec("UPDATE users SET password = ?, force_password_change = 0 WHERE username = ?", 
+                          hashedPassword, req.Username)
+    if err != nil {
+        http.Error(w, "Failed to update password", http.StatusInternalServerError)
+        return
+    }
+    
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        http.Error(w, "Error checking update status", http.StatusInternalServerError)
+        return
+    }
+    
+    if rowsAffected == 0 {
+        http.Error(w, "User not found", http.StatusNotFound)
+        return
+    }
+    
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(map[string]string{"message": "Password changed successfully"})
 }
 
 func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {

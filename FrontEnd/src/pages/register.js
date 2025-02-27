@@ -73,7 +73,7 @@ export default function RegisterPage() {
       const payload = {
         username: user.username,
         password: user.password,
-        myEmail: user.email,
+        primaryContactEmail: user.email,
       };
 
       const response = await fetch('http://localhost:8080/create-account', {

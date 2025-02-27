@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export default function PersonalDetails() {
+  // Removed "email" from the initial state
   const [details, setDetails] = useState({
     username: '',
-    email: '',
     primaryContact: '',
     secondaryContacts: ['']
   });
@@ -52,9 +52,9 @@ export default function PersonalDetails() {
     try {
       console.log('Submitted details:', details);
 
+      // Payload now uses primaryContactEmail and contactEmail from the fields
       const payload = {
         username: details.username,
-        myEmail: details.email,
         primaryContactEmail: details.primaryContact,
         contactEmail: details.secondaryContacts.join(',')
       };
@@ -110,20 +110,7 @@ export default function PersonalDetails() {
           </div>
 
           <div className="flex flex-col">
-            <label htmlFor="email">My Email</label>
-            <input
-              type="text"
-              id="email"
-              name="email"
-              value={details.email}
-              onChange={(e) => setDetails({ ...details, email: e.target.value })}
-              className="border-gray-600 border rounded-lg p-1"
-            />
-            {errors.email && <div className="text-red-500">{errors.email}</div>}
-          </div>
-
-          <div className="flex flex-col">
-            <label htmlFor="primaryContact">Primary Contact Email</label>
+            <label htmlFor="primaryContact">Primary Email</label>
             <input
               type="text"
               id="primaryContact"

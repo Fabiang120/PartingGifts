@@ -21,7 +21,9 @@ const LoginPage = () => {
       });
 
       if (!response.ok) {
-        throw new Error("Invalid username or password");
+        // Instead of throwing a detailed error, simply set a generic error message.
+        setError("You entered the wrong username and password");
+        return;
       }
 
       // Parse the JSON response.
@@ -39,7 +41,7 @@ const LoginPage = () => {
       }
     } catch (err) {
       console.error("Login error:", err);
-      setError("Login failed. Please try again.");
+      setError("You entered the wrong username and password");
     }
   };
 
