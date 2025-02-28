@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { Geist, Geist_Mono } from "next/font/google";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 
 const geistSans = Geist({
@@ -14,20 +14,71 @@ const geistMono = Geist_Mono({
 });
 
 export default function PersonalDetails() {
-  // Removed "email" from the initial state
   const [details, setDetails] = useState({
     username: '',
     primaryContact: '',
     secondaryContacts: ['']
   });
+  const [userEmailDetails, setUserEmailDetails] = useState(null);
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState('');
   const router = useRouter();
 
+  // Retrieve the username from sessionStorage on mount.
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedUsername = sessionStorage.getItem("username");
+      if (storedUsername) {
+        console.log("Retrieved username from sessionStorage:", storedUsername);
+        setDetails(prev => ({ ...prev, username: storedUsername }));
+      } else {
+        console.log("No username in sessionStorage");
+      }
+    }
+  }, []);
+
+  // Fetch user details once the username is set.
+  useEffect(() => {
+    async function fetchEmailDetails() {
+      if (!details.username) {
+        console.log("No username set yet for fetching details.");
+        return;
+      }
+      console.log("Fetching details for username:", details.username);
+      try {
+        const response = await fetch(`http://localhost:8080/update-emails?username=${details.username}`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Fetched user details:", data);
+          setUserEmailDetails(data);
+          // Prepopulate the form fields if data exists.
+          if (data.primary_contact_email) {
+            setDetails(prev => ({ ...prev, primaryContact: data.primary_contact_email }));
+          } else {
+            console.log("No primary_contact_email found for user.");
+          }
+          if (data.secondary_contact_emails) {
+            const contacts = data.secondary_contact_emails.split(',');
+            setDetails(prev => ({
+              ...prev,
+              secondaryContacts: contacts
+            }));
+          } else {
+            console.log("No secondary_contact_emails found for user.");
+          }
+        } else {
+          console.error("Failed to fetch user details, status:", response.status);
+        }
+      } catch (err) {
+        console.error("Error fetching email details:", err);
+      }
+    }
+    fetchEmailDetails();
+  }, [details.username]);
+
   // Simple validation (expand as needed)
   const validate = () => {
     const newErrors = {};
-    // Add any validation logic here if needed.
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -50,9 +101,7 @@ export default function PersonalDetails() {
 
   const updatePersonalDetails = async () => {
     try {
-      console.log('Submitted details:', details);
-
-      // Payload now uses primaryContactEmail and contactEmail from the fields
+      console.log("Submitted details:", details);
       const payload = {
         username: details.username,
         primaryContactEmail: details.primaryContact,
@@ -61,23 +110,20 @@ export default function PersonalDetails() {
 
       const response = await fetch('http://localhost:8080/update-emails', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        throw new Error('Update failed. Please try again.');
+        throw new Error("Update failed. Please try again.");
       }
 
       const textResponse = await response.text();
-      console.log('Update response:', textResponse);
+      console.log("Update response:", textResponse);
       setMessage(textResponse);
-
     } catch (err) {
-      console.log('Update error:', err);
-      setMessage('Update failed. Please try again.');
+      console.error("Update error:", err);
+      setMessage("Update failed. Please try again.");
     }
   };
 
@@ -96,6 +142,16 @@ export default function PersonalDetails() {
           <img src="https://i.postimg.cc/VsRBMLgn/pglogo.png" className="w-40" alt="logo" />
           <p className="font-bold text-2xl">Personal Details</p>
 
+          {userEmailDetails && userEmailDetails.username ? (
+            <div className="bg-gray-100 p-2 mb-2">
+              Current Username: {userEmailDetails.username}
+            </div>
+          ) : (
+            <div className="bg-red-100 p-2 mb-2">
+              Username not found in fetched data.
+            </div>
+          )}
+
           <div className="flex flex-col">
             <label htmlFor="username">Username</label>
             <input
@@ -110,6 +166,15 @@ export default function PersonalDetails() {
           </div>
 
           <div className="flex flex-col">
+            {userEmailDetails && userEmailDetails.primary_contact_email ? (
+              <div className="bg-gray-100 p-2 mb-2">
+                Current Primary Email: {userEmailDetails.primary_contact_email}
+              </div>
+            ) : (
+              <div className="bg-red-100 p-2 mb-2">
+                No primary email found.
+              </div>
+            )}
             <label htmlFor="primaryContact">Primary Email</label>
             <input
               type="text"
@@ -123,6 +188,15 @@ export default function PersonalDetails() {
           </div>
 
           <div className="flex flex-col">
+            {userEmailDetails && userEmailDetails.secondary_contact_emails ? (
+              <div className="bg-gray-100 p-2 mb-2">
+                Current Secondary Emails: {userEmailDetails.secondary_contact_emails}
+              </div>
+            ) : (
+              <div className="bg-red-100 p-2 mb-2">
+                No secondary emails found.
+              </div>
+            )}
             <div className="space-x-2">
               <label htmlFor="secondaryContacts">Secondary Contact Emails</label>
               <button

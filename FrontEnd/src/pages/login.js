@@ -1,13 +1,11 @@
 import React, { useState } from "react";
 import { useRouter } from "next/router";
-import { useAuth } from "./AuthContext"; // adjust the path as needed
 
 const LoginPage = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
-  const { setUser } = useAuth(); // Get the setter from context
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -21,17 +19,17 @@ const LoginPage = () => {
       });
 
       if (!response.ok) {
-        // Instead of throwing a detailed error, simply set a generic error message.
         setError("You entered the wrong username and password");
         return;
       }
 
-      // Parse the JSON response.
       const data = await response.json();
       console.log("Login response:", data);
 
-      // Store the logged in user info in the context.
-      setUser({ username });
+      // Store the username in sessionStorage.
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("username", username);
+      }
 
       // Redirect based on the forceChange flag.
       if (data.forceChange) {
