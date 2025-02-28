@@ -1,14 +1,26 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { useAuth } from "./AuthContext";
 
 const ForceChange = () => {
-    const { user, setUser } = useAuth();
+    const [username, setUsername] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
     const router = useRouter();
+
+    // Retrieve the username from sessionStorage on mount.
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const storedUsername = sessionStorage.getItem("username");
+            if (storedUsername) {
+                console.log("Retrieved username from sessionStorage:", storedUsername);
+                setUsername(storedUsername);
+            } else {
+                console.log("No username found in sessionStorage");
+            }
+        }
+    }, []);
 
     const handleChangePassword = async (e) => {
         e.preventDefault();
@@ -25,7 +37,7 @@ const ForceChange = () => {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    username: user.username,
+                    username: username,
                     newPassword: newPassword,
                 }),
             });
@@ -37,8 +49,8 @@ const ForceChange = () => {
             }
 
             setMessage("Password changed successfully. Please log in again.");
-            // Clear the user's authentication and redirect to login.
-            setUser(null);
+            // Remove username from sessionStorage and redirect to login.
+            sessionStorage.removeItem("username");
             router.push("/login");
         } catch (err) {
             console.error("Error changing password:", err);
@@ -77,12 +89,8 @@ const ForceChange = () => {
                             required
                         />
                     </div>
-                    {error && (
-                        <p className="mb-4 text-sm text-red-600">{error}</p>
-                    )}
-                    {message && (
-                        <p className="mb-4 text-sm text-green-600">{message}</p>
-                    )}
+                    {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+                    {message && <p className="mb-4 text-sm text-green-600">{message}</p>}
                     <button
                         type="submit"
                         className="w-full px-4 py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 focus:outline-none focus:ring focus:ring-blue-300"

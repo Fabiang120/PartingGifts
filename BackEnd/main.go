@@ -23,9 +23,10 @@ type User struct {
     ID                     int    `json:"id"`
     Username               string `json:"username"`
     Password               string `json:"password"`
-    PrimaryContactEmail    string `json:"primaryContactEmail,omitempty"`
-    SecondaryContactEmails string `json:"contactEmail,omitempty"`
+    PrimaryContactEmail    string `json:"primary_contact_email,omitempty"`
+    SecondaryContactEmails string `json:"secondary_contact_emails,omitempty"`
 }
+
 
 var db *sql.DB
 
@@ -45,6 +46,7 @@ func main() {
         password TEXT,
         primary_contact_email TEXT,
         secondary_contact_emails TEXT,
+        receivers Text,
         force_password_change BOOLEAN DEFAULT 0
     );
     `
@@ -60,6 +62,7 @@ func main() {
         user_id INTEGER,
         file_name TEXT,
         file_data BLOB,
+        custom_message TEXT,
         upload_time DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id)
     );
@@ -77,7 +80,9 @@ func main() {
     http.HandleFunc("/login", loginHandler)
     http.HandleFunc("/reset-password", resetPasswordHandler)
     http.HandleFunc("/change-password", changePasswordHandler)
-    
+    http.HandleFunc("/setup-receivers", setupReceiversHandler)
+
+
     fmt.Println("Server listening on http://localhost:8080")
     if err := http.ListenAndServe(":8080", nil); err != nil {
         log.Fatalf("Server failed: %v", err)
@@ -117,7 +122,7 @@ func createAccountHandler(w http.ResponseWriter, r *http.Request) {
 
     var user User
     if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-        http.Error(w, "Invalid username. Must be 4-20 characters, only letters, numbers and underscore.", http.StatusBadRequest)
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
         return
     }
     if !isValidPassword(user.Password) {
@@ -125,6 +130,7 @@ func createAccountHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    // Check if the username already exists.
     var existingID int
     err := db.QueryRow("SELECT id FROM users WHERE username = ?", user.Username).Scan(&existingID)
     if err == nil {
@@ -138,14 +144,16 @@ func createAccountHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    stmt, err := db.Prepare("INSERT INTO users(username, password, primary_contact_email) VALUES(?, ?, ?)")
+    // Insert both primary and secondary emails.
+    stmt, err := db.Prepare("INSERT INTO users(username, password, primary_contact_email, secondary_contact_emails) VALUES(?, ?, ?, ?)")
     if err != nil {
         http.Error(w, "Registration failed", http.StatusInternalServerError)
         return
     }
     defer stmt.Close()
 
-    _, err = stmt.Exec(user.Username, hashedPassword, user.PrimaryContactEmail)
+    // If SecondaryContactEmails is empty, pass an empty string.
+    _, err = stmt.Exec(user.Username, hashedPassword, user.PrimaryContactEmail, user.SecondaryContactEmails)
     if err != nil {
         http.Error(w, "Registration failed", http.StatusInternalServerError)
         return
@@ -181,42 +189,59 @@ func personalDetailsHandler(w http.ResponseWriter, r *http.Request) {
         w.WriteHeader(http.StatusOK)
         return
     }
-    if r.Method != http.MethodPost {
+
+    switch r.Method {
+    case http.MethodGet:
+        // Retrieve user details.
+        username := r.URL.Query().Get("username")
+        if username == "" {
+            http.Error(w, "Username is required", http.StatusBadRequest)
+            return
+        }
+        var user User
+        err := db.QueryRow("SELECT username, primary_contact_email, secondary_contact_emails FROM users WHERE username = ?", username).
+            Scan(&user.Username, &user.PrimaryContactEmail, &user.SecondaryContactEmails)
+        if err != nil {
+            http.Error(w, "User not found", http.StatusNotFound)
+            return
+        }
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(user)
+    case http.MethodPost:
+        var user User
+        if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+            http.Error(w, "Invalid request body", http.StatusBadRequest)
+            return
+        }
+        stmt, err := db.Prepare("UPDATE users SET primary_contact_email = ?, secondary_contact_emails = ? WHERE username = ?")
+        if err != nil {
+            log.Printf("Error preparing update statement: %v", err)
+            http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
+            return
+        }
+        defer stmt.Close()
+        res, err := stmt.Exec(user.PrimaryContactEmail, user.SecondaryContactEmails, user.Username)
+        if err != nil {
+            log.Printf("Error executing update: %v", err)
+            http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
+            return
+        }
+        rowsAffected, err := res.RowsAffected()
+        if err != nil {
+            log.Printf("Error retrieving affected rows: %v", err)
+            http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
+            return
+        }
+        if rowsAffected == 0 {
+            http.Error(w, "No user found with that username", http.StatusNotFound)
+            return
+        }
+        w.Header().Set("Content-Type", "text/plain")
+        w.WriteHeader(http.StatusOK)
+        w.Write([]byte("Personal details updated successfully"))
+    default:
         http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-        return
     }
-    var user User
-    if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-        http.Error(w, "Invalid request body", http.StatusBadRequest)
-        return
-    }
-    // Update only primary_contact_email and secondary_contact_emails
-    stmt, err := db.Prepare("UPDATE users SET primary_contact_email = ?, secondary_contact_emails = ? WHERE username = ?")
-    if err != nil {
-        log.Printf("Error preparing update statement: %v", err)
-        http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
-        return
-    }
-    defer stmt.Close()
-    res, err := stmt.Exec(user.PrimaryContactEmail, user.SecondaryContactEmails, user.Username)
-    if err != nil {
-        log.Printf("Error executing update: %v", err)
-        http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
-        return
-    }
-    rowsAffected, err := res.RowsAffected()
-    if err != nil {
-        log.Printf("Error retrieving affected rows: %v", err)
-        http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
-        return
-    }
-    if rowsAffected == 0 {
-        http.Error(w, "No user found with that username", http.StatusNotFound)
-        return
-    }
-    w.Header().Set("Content-Type", "text/plain")
-    w.WriteHeader(http.StatusOK)
-    w.Write([]byte("Personal details updated successfully"))
 }
 
 
@@ -253,21 +278,18 @@ func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    // Hash the new password.
     hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
     if err != nil {
         http.Error(w, "Error generating password", http.StatusInternalServerError)
         return
     }
     
-    // Update the user's password and set force_password_change to true.
     _, err = db.Exec("UPDATE users SET password = ?, force_password_change = 1 WHERE id = ?", hashed, userID)
     if err != nil {
         http.Error(w, "Error updating password", http.StatusInternalServerError)
         return
     }
     
-    // Send the new password by email.
     smtpHost := "smtp.gmail.com"
     smtpPort := 587
     senderEmail := "f3243329@gmail.com"
@@ -292,8 +314,6 @@ func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusOK)
     w.Write([]byte("Password reset instructions have been sent to your email."))
 }
-
-
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
     enableCors(&w)
@@ -337,12 +357,11 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    // Return JSON with force_password_change flag
     response := struct {
-        Message string `json:"message"`
-        ForceChange bool `json:"forceChange"`
+        Message     string `json:"message"`
+        ForceChange bool   `json:"forceChange"`
     }{
-        Message: "Login successful",
+        Message:     "Login successful",
         ForceChange: forceChange,
     }
     
@@ -377,14 +396,12 @@ func changePasswordHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    // Hash the new password
     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
     if err != nil {
         http.Error(w, "Error hashing password", http.StatusInternalServerError)
         return
     }
     
-    // Update the password and reset the force_password_change flag
     result, err := db.Exec("UPDATE users SET password = ?, force_password_change = 0 WHERE username = ?", 
                           hashedPassword, req.Username)
     if err != nil {
@@ -424,7 +441,6 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Retrieve username and log it for debugging.
     username := r.FormValue("username")
     log.Printf("Username received: '%s'", username)
     if username == "" {
@@ -432,10 +448,8 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Retrieve additional fields.
+    // Read custom message from form data.
     customMessage := r.FormValue("emailMessage")
-    sendToAll := r.FormValue("sendToAll") // Expected "true" or "false"
-    log.Printf("sendToAll: %s, emailMessage: %s", sendToAll, customMessage)
 
     file, header, err := r.FormFile("file")
     if err != nil {
@@ -450,7 +464,6 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
     }
     log.Printf("Received file: %s, size: %d bytes", header.Filename, len(fileData))
 
-    // Query the database for the user's ID.
     var userID int
     err = db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
     if err != nil {
@@ -460,7 +473,8 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
     }
     log.Printf("User ID for username '%s': %d", username, userID)
 
-    stmt, err := db.Prepare("INSERT INTO gifts(user_id, file_name, file_data) VALUES(?, ?, ?)")
+    // Insert the gift record along with the custom message.
+    stmt, err := db.Prepare("INSERT INTO gifts(user_id, file_name, file_data, custom_message) VALUES(?, ?, ?, ?)")
     if err != nil {
         log.Printf("Error preparing gift insert: %v", err)
         http.Error(w, fmt.Sprintf("Upload failed: %v", err), http.StatusInternalServerError)
@@ -468,7 +482,7 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
     }
     defer stmt.Close()
 
-    _, err = stmt.Exec(userID, header.Filename, fileData)
+    _, err = stmt.Exec(userID, header.Filename, fileData, customMessage)
     if err != nil {
         log.Printf("Error executing gift insert: %v", err)
         http.Error(w, fmt.Sprintf("Upload failed: %v", err), http.StatusInternalServerError)
@@ -476,87 +490,124 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
     }
     log.Println("Gift record inserted successfully")
 
-    // Delay email sending by 1 minute.
-    delay := time.Minute * 1
-    go func(username, fileName string, fileData []byte, customMessage, sendToAll string) {
-        time.Sleep(delay)
-        sendAll := false
-        if sendToAll == "true" {
-            sendAll = true
-        }
-        err := sendGiftByEmail(username, fileName, fileData, customMessage, sendAll)
-        if err != nil {
-            log.Printf("Error sending gift email: %v", err)
-        } else {
-            log.Printf("Gift email sent successfully for user: %s", username)
-        }
-    }(username, header.Filename, fileData, customMessage, sendToAll)
-
+    // Do not send email here.
     w.Header().Set("Content-Type", "text/plain")
     w.WriteHeader(http.StatusOK)
     w.Write([]byte("Gift uploaded successfully"))
 }
 
 
-func sendGiftByEmail(username, fileName string, fileData []byte, customBody string, sendToAll bool) error {
-    // Retrieve primary contact email.
-    var primary string
-    err := db.QueryRow("SELECT primary_contact_email FROM users WHERE username = ?", username).Scan(&primary)
-    if err != nil {
-        log.Printf("Error retrieving primary contact email for user %s: %v", username, err)
-        return fmt.Errorf("failed to retrieve primary contact email: %v", err)
-    }
-    if primary == "" {
-        log.Printf("No primary contact email found for user %s", username)
-        return fmt.Errorf("primary contact email is empty for user %s", username)
-    }
-    recipients := []string{primary}
-    log.Printf("Primary contact email: %s", primary)
 
-    if sendToAll {
-        var secondary string
-        err = db.QueryRow("SELECT secondary_contact_emails FROM users WHERE username = ?", username).Scan(&secondary)
-        if err != nil && err != sql.ErrNoRows {
-            log.Printf("Error retrieving secondary contact emails for user %s: %v", username, err)
-            return fmt.Errorf("failed to retrieve secondary contact emails: %v", err)
-        }
-        if secondary != "" {
-            emails := strings.Split(secondary, ",")
-            for _, email := range emails {
-                trimmed := strings.TrimSpace(email)
-                if trimmed != "" {
-                    recipients = append(recipients, trimmed)
-                }
+
+// Setting up new receiver logic //
+func setupReceiversHandler(w http.ResponseWriter, r *http.Request) {
+    enableCors(&w)
+    if r.Method == http.MethodOptions {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+    if r.Method != http.MethodPost {
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return
+    }
+
+    // Expect giftId, receivers (comma-separated), and an optional custom message.
+    var req struct {
+        GiftID        int    `json:"giftId"`
+        Receivers     string `json:"receivers"`
+        CustomMessage string `json:"customMessage"`
+    }
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+    
+    // Retrieve the gift record to determine the user ID and get the gift file.
+    var userID int
+    var fileName string
+    var fileData []byte
+    err := db.QueryRow("SELECT user_id, file_name, file_data FROM gifts WHERE id = ?", req.GiftID).
+        Scan(&userID, &fileName, &fileData)
+    if err != nil {
+        log.Printf("Error retrieving gift record: %v", err)
+        http.Error(w, "Gift not found", http.StatusNotFound)
+        return
+    }
+    
+    // Update the user's receivers column with the provided receivers.
+    _, err = db.Exec("UPDATE users SET receivers = ? WHERE id = ?", req.Receivers, userID)
+    if err != nil {
+        log.Printf("Error updating user receivers: %v", err)
+        http.Error(w, "Failed to update receivers", http.StatusInternalServerError)
+        return
+    }
+    
+    // Optional: wait a few seconds to ensure the update propagates.
+    time.Sleep(10 * time.Second)
+    
+    // Retrieve the stored receivers from the user record.
+    var receivers string
+    err = db.QueryRow("SELECT receivers FROM users WHERE id = ?", userID).Scan(&receivers)
+    if err != nil {
+        log.Printf("Error retrieving receivers from user record: %v", err)
+        http.Error(w, "Failed to retrieve receivers", http.StatusInternalServerError)
+        return
+    }
+    
+    // Send the gift email using the receivers from the user record.
+    if err := sendGiftEmailToReceivers(fileName, fileData, req.CustomMessage, receivers); err != nil {
+        log.Printf("Error sending gift email: %v", err)
+        http.Error(w, fmt.Sprintf("Failed to send gift email: %v", err), http.StatusInternalServerError)
+        return
+    }
+    
+    w.Header().Set("Content-Type", "text/plain")
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Gift email sent successfully to receivers."))
+}
+
+
+func sendGiftEmailToReceivers(fileName string, fileData []byte, customMessage, receiversParam string) error {
+    // Parse the receivers from the comma-separated string.
+    var recipients []string
+    if receiversParam != "" {
+        recs := strings.Split(receiversParam, ",")
+        for _, r := range recs {
+            trimmed := strings.TrimSpace(r)
+            if trimmed != "" {
+                recipients = append(recipients, trimmed)
             }
         }
-        log.Printf("All recipients: %v", recipients)
+    } else {
+        return fmt.Errorf("no receivers provided")
     }
-
+    
     smtpHost := "smtp.gmail.com"
     smtpPort := 587
     senderEmail := "f3243329@gmail.com"
     senderPassword := "auca xxpm lziz vrjg"
-
+    
     m := gomail.NewMessage()
     m.SetHeader("From", senderEmail)
     m.SetHeader("Subject", "Your Parting Gift")
     m.SetHeader("To", recipients...)
+    
     var body string
-    if customBody != "" {
-        body = customBody
+    if customMessage != "" {
+        body = customMessage
     } else {
         body = fmt.Sprintf("Hello,\n\nPlease find attached your parting gift: %s", fileName)
     }
     m.SetBody("text/plain", body)
-
+    
     m.Attach(fileName, gomail.SetCopyFunc(func(w io.Writer) error {
         _, err := w.Write(fileData)
         return err
     }))
-
+    
     d := gomail.NewDialer(smtpHost, smtpPort, senderEmail, senderPassword)
     if err := d.DialAndSend(m); err != nil {
-        log.Printf("Failed to send email for user %s: %v", username, err)
+        log.Printf("Failed to send email: %v", err)
         return fmt.Errorf("failed to send email: %v", err)
     }
     return nil

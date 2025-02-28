@@ -14,9 +14,36 @@ const MemoryUploaded = () => {
     setReceiverInfo({ ...receiverInfo, [name]: value });
   };
 
-  const handleSave = () => {
-    console.log("Memory saved with receiver info:", receiverInfo);
-    alert("Memory saved successfully!");
+  const handleSave = async () => {
+    // Replace this giftId with a real value if available.
+    const giftId = 1;
+
+    // Construct payload based on backend expectations.
+    const payload = {
+      giftId: giftId,
+      receivers: receiverInfo.email, // For multiple receivers, use a comma-separated string.
+      customMessage: receiverInfo.comments,
+    };
+
+    try {
+      const response = await fetch("http://localhost:8080/setup-receivers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        alert("Memory saved and email sent successfully!");
+      } else {
+        const errorText = await response.text();
+        alert("Memory saved but failed to send email: " + errorText);
+      }
+    } catch (error) {
+      console.error("Error saving memory:", error);
+      alert("Error occurred while saving memory: " + error.message);
+    }
   };
 
   const handleDelete = () => {
