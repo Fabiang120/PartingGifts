@@ -81,8 +81,8 @@ func main() {
     http.HandleFunc("/reset-password", resetPasswordHandler)
     http.HandleFunc("/change-password", changePasswordHandler)
     http.HandleFunc("/setup-receivers", setupReceiversHandler)
-
-
+    http.HandleFunc("/gift-count", giftCountHandler)
+    
     fmt.Println("Server listening on http://localhost:8080")
     if err := http.ListenAndServe(":8080", nil); err != nil {
         log.Fatalf("Server failed: %v", err)
@@ -162,6 +162,47 @@ func createAccountHandler(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusCreated)
     w.Write([]byte("Account created successfully"))
 }
+
+// Endpoint to return the count of gifts for a given username.
+func giftCountHandler(w http.ResponseWriter, r *http.Request) {
+    enableCors(&w)
+    if r.Method == http.MethodOptions {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+    if r.Method != http.MethodGet {
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return
+    }
+    
+    // Get the username from the query parameters.
+    username := r.URL.Query().Get("username")
+    if username == "" {
+        http.Error(w, "Username is required", http.StatusBadRequest)
+        return
+    }
+    
+    // Retrieve the user ID for the provided username.
+    var userID int
+    err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
+    if err != nil {
+        http.Error(w, "User not found", http.StatusNotFound)
+        return
+    }
+    
+    // Count the number of gifts for this user.
+    var count int
+    err = db.QueryRow("SELECT COUNT(*) FROM gifts WHERE user_id = ?", userID).Scan(&count)
+    if err != nil {
+        http.Error(w, "Error retrieving gift count", http.StatusInternalServerError)
+        return
+    }
+    
+    // Respond with the count as JSON.
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]int{"count": count})
+}
+
 
 func isValidUsername(username string) bool {
     matched, _ := regexp.MatchString(`^[a-zA-Z0-9_]{4,20}$`, username)
