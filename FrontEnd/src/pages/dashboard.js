@@ -16,6 +16,7 @@ const Dashboard = () => {
       console.log("Retrieved username:", storedUsername);
       if (storedUsername) {
         setUsername(storedUsername);
+        // Fetch the gift count.
         fetch(`http://localhost:8080/gift-count?username=${storedUsername}`)
           .then((res) => res.json())
           .then((data) => {
@@ -26,23 +27,26 @@ const Dashboard = () => {
             console.error("Error fetching gift count:", error);
             setGiftCount(0);
           });
+        // Fetch the gifts for this user.
         fetch(`http://localhost:8080/gifts?username=${storedUsername}`)
           .then((res) => res.json())
           .then((data) => {
             console.log("Gifts data:", data);
             setGifts(data);
           })
-          .catch((error) => console.error("Error fetching gifts:", error));
-      }
-      const storedEmails = sessionStorage.getItem("receiverEmails");
-      if (storedEmails) {
-        try {
-          const parsedEmails = JSON.parse(storedEmails);
-          setReceiverEmails(parsedEmails);
-        } catch (error) {
-          const emails = storedEmails.split(",");
-          setReceiverEmails(emails.map((email) => email.trim()));
-        }
+          .catch((error) =>
+            console.error("Error fetching gifts:", error)
+          );
+        // Fetch receiver emails from the database.
+        fetch(`http://localhost:8080/get-receivers?username=${storedUsername}`)
+          .then((res) => res.json())
+          .then((data) => {
+            console.log("Receiver emails:", data);
+            setReceiverEmails(data);
+          })
+          .catch((error) =>
+            console.error("Error fetching receiver emails:", error)
+          );
       }
     }
   }, []);
@@ -147,7 +151,15 @@ const Dashboard = () => {
           {receiverEmails.length > 0 ? (
             <ul className="list-disc pl-5">
               {receiverEmails.map((email, index) => (
-                <li key={index} className="text-black">
+                <li key={index} className="flex items-center text-black">
+                  {/* Person icon (inline SVG) */}
+                  <svg
+                    className="w-4 h-4 mr-2"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M10 10a5 5 0 100-10 5 5 0 000 10zM2 18a8 8 0 0116 0H2z" />
+                  </svg>
                   {email}
                 </li>
               ))}
@@ -166,14 +178,12 @@ const Dashboard = () => {
             {selectedGift.file_name ? (
               <div>
                 {isImageFile(selectedGift.file_name) ? (
-                  // Display the image preview using the /download-gift route.
                   <img
                     src={`http://localhost:8080/download-gift?id=${selectedGift.id}`}
                     alt={selectedGift.file_name}
                     className="mb-4 max-h-96 object-contain"
                   />
                 ) : (
-                  // For non-image files, display a download link.
                   <a
                     href={`http://localhost:8080/download-gift?id=${selectedGift.id}`}
                     download={selectedGift.file_name}

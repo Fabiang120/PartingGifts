@@ -84,6 +84,7 @@ func main() {
     http.HandleFunc("/gift-count", giftCountHandler)
     http.HandleFunc("/gifts", getGiftsHandler)
     http.HandleFunc("/download-gift", downloadGiftHandler)
+    http.HandleFunc("/get-receivers", GetReceiverHandler)
 
     fmt.Println("Server listening on http://localhost:8080")
     if err := http.ListenAndServe(":8080", nil); err != nil {
@@ -707,6 +708,7 @@ func setupReceiversHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 
+
 func sendGiftEmailToReceivers(fileName string, fileData []byte, customMessage, receiversParam string) error {
     // Parse the receivers from the comma-separated string.
     var recipients []string
@@ -752,4 +754,35 @@ func sendGiftEmailToReceivers(fileName string, fileData []byte, customMessage, r
     }
     return nil
 }
-
+func GetReceiverHandler(w http.ResponseWriter, r *http.Request){
+    enableCors(&w)
+    if r.Method == http.MethodOptions {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+    if r.Method != http.MethodGet {
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return
+    }
+    username := r.URL.Query().Get("username")
+    if username == "" {
+        http.Error(w, "Username is required", http.StatusBadRequest)
+        return
+    }
+    var receivers string
+    err := db.QueryRow("SELECT receivers FROM users WHERE username = ?", username).Scan(&receivers)
+    if err != nil {
+        http.Error(w, "User not found", http.StatusNotFound)
+        return
+    }
+    // Split the receivers (assumed comma-separated) into an array.
+    var emails []string
+    if receivers != "" {
+        emails = strings.Split(receivers, ",")
+        for i, email := range emails {
+            emails[i] = strings.TrimSpace(email)
+        }
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(emails)
+}
