@@ -82,7 +82,9 @@ func main() {
     http.HandleFunc("/change-password", changePasswordHandler)
     http.HandleFunc("/setup-receivers", setupReceiversHandler)
     http.HandleFunc("/gift-count", giftCountHandler)
-    
+    http.HandleFunc("/gifts", getGiftsHandler)
+    http.HandleFunc("/download-gift", downloadGiftHandler)
+
     fmt.Println("Server listening on http://localhost:8080")
     if err := http.ListenAndServe(":8080", nil); err != nil {
         log.Fatalf("Server failed: %v", err)
@@ -104,7 +106,7 @@ func generateRandomPassword(length int) (string, error) {
 }
 
 func enableCors(w *http.ResponseWriter) {
-    (*w).Header().Set("Access-Control-Allow-Origin", "http://localhost:4200")
+    (*w).Header().Set("Access-Control-Allow-Origin", "*")
     (*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
     (*w).Header().Set("Access-Control-Allow-Headers", "Content-Type")
 }
@@ -202,6 +204,103 @@ func giftCountHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(map[string]int{"count": count})
 }
+
+
+// downloadGiftHandler serves the gift file for inline viewing or download.
+func downloadGiftHandler(w http.ResponseWriter, r *http.Request) {
+    enableCors(&w)
+    if r.Method == http.MethodOptions {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+    if r.Method != http.MethodGet {
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return
+    }
+    // Get the gift id from the query parameters.
+    id := r.URL.Query().Get("id")
+    if id == "" {
+        http.Error(w, "Gift id is required", http.StatusBadRequest)
+        return
+    }
+    // Retrieve the file name and file data from the gifts table.
+    var fileName string
+    var fileData []byte
+    err := db.QueryRow("SELECT file_name, file_data FROM gifts WHERE id = ?", id).Scan(&fileName, &fileData)
+    if err != nil {
+        http.Error(w, "Gift not found", http.StatusNotFound)
+        return
+    }
+    if len(fileData) == 0 {
+        http.Error(w, "No file data available", http.StatusInternalServerError)
+        return
+    }
+    // Determine the Content-Type based on the file extension.
+    contentType := "application/octet-stream"
+    lowerName := strings.ToLower(fileName)
+    if strings.HasSuffix(lowerName, ".jpg") || strings.HasSuffix(lowerName, ".jpeg") {
+        contentType = "image/jpeg"
+    } else if strings.HasSuffix(lowerName, ".png") {
+        contentType = "image/png"
+    } else if strings.HasSuffix(lowerName, ".gif") {
+        contentType = "image/gif"
+    }
+    // Set headers.
+    w.Header().Set("Content-Type", contentType)
+    w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%s", fileName))
+    w.Header().Set("Content-Length", fmt.Sprintf("%d", len(fileData)))
+    w.WriteHeader(http.StatusOK)
+    w.Write(fileData)
+}
+
+
+
+func getGiftsHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		http.Error(w, "Username is required", http.StatusBadRequest)
+		return
+	}
+	var userID int
+	err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+	rows, err := db.Query("SELECT id, file_name, custom_message, upload_time FROM gifts WHERE user_id = ? ORDER BY upload_time DESC", userID)
+	if err != nil {
+		http.Error(w, "Error retrieving gifts", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+	type Gift struct {
+		ID            int    `json:"id"`
+		FileName      string `json:"file_name"`
+		CustomMessage string `json:"custom_message"`
+		UploadTime    string `json:"upload_time"`
+	}
+	var gifts []Gift
+	for rows.Next() {
+		var gift Gift
+		if err := rows.Scan(&gift.ID, &gift.FileName, &gift.CustomMessage, &gift.UploadTime); err != nil {
+			continue
+		}
+		gifts = append(gifts, gift)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(gifts)
+}
+
+
 
 
 func isValidUsername(username string) bool {
