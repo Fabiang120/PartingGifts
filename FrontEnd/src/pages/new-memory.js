@@ -36,10 +36,10 @@ const NewMemory = () => {
       alert("Username is not defined. Please log in again.");
       return;
     }
+
     const formData = new FormData();
     formData.append("username", username);
     formData.append("file", selectedFile);
-    // Append the custom message for the email.
     formData.append("emailMessage", customMessage);
 
     try {
@@ -47,15 +47,23 @@ const NewMemory = () => {
         method: "POST",
         body: formData,
       });
+
       if (!response.ok) {
-        throw new Error("Upload failed");
+        const errorText = await response.text();
+        throw new Error(`Upload failed: ${errorText}`);
       }
-      const textResponse = await response.text();
-      setMessage(textResponse);
+
+      const responseData = await response.json();
+      setMessage(responseData.message);
+
+      // Store gift ID in session storage
+      sessionStorage.setItem("currentGiftId", responseData.giftId);
+      console.log("Stored gift ID:", responseData.giftId);
+
       router.push("/memory-uploaded");
     } catch (err) {
-      console.error(err);
-      alert("Upload failed. Please try again.");
+      console.error("Upload error:", err);
+      alert(err.message || "Upload failed. Please try again.");
     }
   };
 
