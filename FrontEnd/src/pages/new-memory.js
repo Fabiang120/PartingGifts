@@ -92,15 +92,31 @@ const NewMemory = () => {
 
         <div className="w-full md:w-1/2 flex flex-row space-x-4 items-center">
         <div
+          className="flex flex-col items-center border-2 border-red-600 rounded-lg p-2 w-full bg-gray-50 cursor-pointer"
+          onClick={() => router.push('/write-memory')}
+        >
+        <img
+          src="https://cdn-icons-png.flaticon.com/128/1170/1170221.png"
+          alt="Write Icon"
+          className="w-8"
+        />
+        <label htmlFor="record" className="text-red-800 text-center underline cursor-pointer">
+            Write a Message
+          </label>
+        </div>
+
+        <p className="text-black">Or</p>
+
+        <div
           className="flex flex-col items-center border-2 border-green-600 rounded-lg p-2 w-full bg-gray-50 cursor-pointer"
           onClick={() => router.push('/record-memory')}
         >
         <img
           src="https://cdn-icons-png.flaticon.com/128/711/711245.png"
-          alt="Parting Gifts Logo"
+          alt="Record Icon"
           className="w-8"
         />
-        <label htmlFor="record" className="text-green-800 underline cursor-pointer">
+        <label htmlFor="record" className="text-green-800 text-center underline cursor-pointer">
             Record a Video
           </label>
         </div>
@@ -119,7 +135,7 @@ const NewMemory = () => {
             id="fileInput"
           />
           <label htmlFor="fileInput" className="text-blue-500 underline cursor-pointer text-center">
-            Drag or Click to Upload
+            Upload a File
           </label>
         </div>
         </div>

@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@react-pdf/renderer": "^4.2.2",
+    "@tiptap/extension-text-style": "^2.11.5",
+    "@tiptap/extension-underline": "^2.11.5",
+    "html-to-pdfmake": "^2.5.21",
+    "jspdf": "^3.0.0",
+    "tiptap-extension-font-size": "^1.2.0"
+  }
+}
