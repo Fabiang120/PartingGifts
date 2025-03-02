@@ -73,6 +73,7 @@ func main() {
         custom_message TEXT,
         receivers TEXT,  -- Add this column
         upload_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+		scheduled_time DATETIME,
         FOREIGN KEY(user_id) REFERENCES users(id)
     );
     `
@@ -82,21 +83,29 @@ func main() {
 
 	fmt.Println("SQLite database is set up and the tables are ready!")
 
-    // Register endpoints.
-    http.HandleFunc("/create-account", createAccountHandler)
-    http.HandleFunc("/update-emails", personalDetailsHandler)
-    http.HandleFunc("/upload-gift", uploadGiftHandler)
-    http.HandleFunc("/login", loginHandler)
-    http.HandleFunc("/reset-password", resetPasswordHandler)
-    http.HandleFunc("/change-password", changePasswordHandler)
-    http.HandleFunc("/setup-receivers", setupReceiversHandler)
-    http.HandleFunc("/gift-count", giftCountHandler)
-    http.HandleFunc("/gifts", getGiftsHandler)
-    http.HandleFunc("/download-gift", downloadGiftHandler)
-    http.HandleFunc("/dashboard/pending-gifts", pendingGiftsHandler)
-    http.HandleFunc("/get-receivers", GetReceiverHandler)
-    http.HandleFunc("/schedule-check", scheduleInactivityCheckHandler)
+	// Register endpoints.
+	http.HandleFunc("/create-account", createAccountHandler)
+	http.HandleFunc("/update-emails", personalDetailsHandler)
+	http.HandleFunc("/upload-gift", uploadGiftHandler)
+	http.HandleFunc("/login", loginHandler)
+	http.HandleFunc("/reset-password", resetPasswordHandler)
+	http.HandleFunc("/change-password", changePasswordHandler)
+	http.HandleFunc("/setup-receivers", setupReceiversHandler)
+	http.HandleFunc("/gift-count", giftCountHandler)
+	http.HandleFunc("/gifts", getGiftsHandler)
+	http.HandleFunc("/download-gift", downloadGiftHandler)
+	http.HandleFunc("/dashboard/pending-gifts", pendingGiftsHandler)
+	http.HandleFunc("/get-receivers", GetReceiverHandler)
+	http.HandleFunc("/schedule-check", scheduleInactivityCheckHandler)
+	http.HandleFunc("/scheduled-gifts", getScheduledGiftsHandler)
 
+	// ✅ Automatically run sendScheduledGifts every minute
+	go func() {
+		for {
+			sendScheduledGifts()
+			time.Sleep(1 * time.Minute) // Check every minute
+		}
+	}()
 
 	fmt.Println("Server listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
@@ -251,107 +260,204 @@ func pendingGiftsHandler(w http.ResponseWriter, r *http.Request) {
 
 // downloadGiftHandler serves the gift file for inline viewing or download.
 func downloadGiftHandler(w http.ResponseWriter, r *http.Request) {
-    enableCors(&w)
-    if r.Method != http.MethodGet {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-        return
-    }
+	enableCors(&w)
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
 
-    id := r.URL.Query().Get("id")
-    if id == "" {
-        http.Error(w, "Gift id is required", http.StatusBadRequest)
-        return
-    }
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "Gift id is required", http.StatusBadRequest)
+		return
+	}
 
-    var fileName string
-    var fileData []byte
-    // Log the ID being requested
-    log.Printf("Attempting to download gift with ID: %s", id)
-    
-    err := db.QueryRow("SELECT file_name, file_data FROM gifts WHERE id = ?", id).Scan(&fileName, &fileData)
-    if err != nil {
-        log.Printf("Error retrieving gift (ID: %s): %v", id, err)
-        http.Error(w, "Gift not found", http.StatusNotFound)
-        return
-    }
-    
-    if len(fileData) == 0 {
-        log.Printf("Empty file data for gift ID: %s", id)
-        http.Error(w, "No file data available", http.StatusInternalServerError)
-        return
-    }
+	var fileName string
+	var fileData []byte
+	// Log the ID being requested
+	log.Printf("Attempting to download gift with ID: %s", id)
 
-    // Determine Content-Type
-    contentType := "application/octet-stream"
-    lowerName := strings.ToLower(fileName)
-    switch {
-    case strings.HasSuffix(lowerName, ".jpg"), strings.HasSuffix(lowerName, ".jpeg"):
-        contentType = "image/jpeg"
-    case strings.HasSuffix(lowerName, ".png"):
-        contentType = "image/png"
-    case strings.HasSuffix(lowerName, ".gif"):
-        contentType = "image/gif"
-    }
+	err := db.QueryRow("SELECT file_name, file_data FROM gifts WHERE id = ?", id).Scan(&fileName, &fileData)
+	if err != nil {
+		log.Printf("Error retrieving gift (ID: %s): %v", id, err)
+		http.Error(w, "Gift not found", http.StatusNotFound)
+		return
+	}
 
-    // Log successful retrieval
-    log.Printf("Serving file: %s (Type: %s, Size: %d bytes)", fileName, contentType, len(fileData))
-    
-    w.Header().Set("Content-Type", contentType)
-    w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", fileName)) // Added quotes for filenames with spaces
-    w.WriteHeader(http.StatusOK)
-    w.Write(fileData)
+	if len(fileData) == 0 {
+		log.Printf("Empty file data for gift ID: %s", id)
+		http.Error(w, "No file data available", http.StatusInternalServerError)
+		return
+	}
+
+	// Determine Content-Type
+	contentType := "application/octet-stream"
+	lowerName := strings.ToLower(fileName)
+	switch {
+	case strings.HasSuffix(lowerName, ".jpg"), strings.HasSuffix(lowerName, ".jpeg"):
+		contentType = "image/jpeg"
+	case strings.HasSuffix(lowerName, ".png"):
+		contentType = "image/png"
+	case strings.HasSuffix(lowerName, ".gif"):
+		contentType = "image/gif"
+	}
+
+	// Log successful retrieval
+	log.Printf("Serving file: %s (Type: %s, Size: %d bytes)", fileName, contentType, len(fileData))
+
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", fileName)) // Added quotes for filenames with spaces
+	w.WriteHeader(http.StatusOK)
+	w.Write(fileData)
 }
-
 
 func getGiftsHandler(w http.ResponseWriter, r *http.Request) {
-    enableCors(&w)
-    if r.Method == http.MethodOptions {
-        w.WriteHeader(http.StatusOK)
-        return
-    }
-    if r.Method != http.MethodGet {
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusMethodNotAllowed)
-        json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request method"})
-        return
-    }
-    username := r.URL.Query().Get("username")
-    if username == "" {
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusBadRequest)
-        json.NewEncoder(w).Encode(map[string]string{"error": "Username is required"})
-        return
-    }
-    var userID int
-    err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
-    if err != nil {
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusNotFound)
-        json.NewEncoder(w).Encode(map[string]string{"error": "User not found"})
-        return
-    }
-    rows, err := db.Query("SELECT id, file_name, custom_message, upload_time FROM gifts WHERE user_id = ? ORDER BY upload_time DESC", userID)
-    if err != nil {
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusInternalServerError)
-        json.NewEncoder(w).Encode(map[string]string{"error": "Error retrieving gifts"})
-        return
-    }
-    defer rows.Close()
-    var gifts []Gift
-    for rows.Next() {
-        var gift Gift
-        if err := rows.Scan(&gift.ID, &gift.FileName, &gift.CustomMessage, &gift.UploadTime); err != nil {
-            continue
-        }
-        gifts = append(gifts, gift)
-    }
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(gifts)
+	enableCors(&w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request method"})
+		return
+	}
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Username is required"})
+		return
+	}
+	var userID int
+	err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "User not found"})
+		return
+	}
+	rows, err := db.Query("SELECT id, file_name, custom_message, upload_time FROM gifts WHERE user_id = ? ORDER BY upload_time DESC", userID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Error retrieving gifts"})
+		return
+	}
+	defer rows.Close()
+	var gifts []Gift
+	for rows.Next() {
+		var gift Gift
+		if err := rows.Scan(&gift.ID, &gift.FileName, &gift.CustomMessage, &gift.UploadTime); err != nil {
+			continue
+		}
+		gifts = append(gifts, gift)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(gifts)
+}
+func getScheduledGiftsHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		http.Error(w, "Username is required", http.StatusBadRequest)
+		return
+	}
+
+	var userID int
+	err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	rows, err := db.Query(`
+        SELECT id, file_name, scheduled_time 
+        FROM gifts 
+        WHERE user_id = ? AND scheduled_time IS NOT NULL
+        ORDER BY scheduled_time ASC
+    `, userID)
+	if err != nil {
+		http.Error(w, "Error retrieving scheduled gifts", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var scheduledGifts []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var fileName, scheduledTime string
+		if err := rows.Scan(&id, &fileName, &scheduledTime); err != nil {
+			continue
+		}
+		scheduledGifts = append(scheduledGifts, map[string]interface{}{
+			"id":             id,
+			"file_name":      fileName,
+			"scheduled_time": scheduledTime,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(scheduledGifts)
 }
 
+func sendScheduledGifts() {
+	now := time.Now()
 
+	// ✅ Retrieve only non-canceled gifts that are due for sending
+	rows, err := db.Query(`
+        SELECT id, user_id, file_name, file_data, custom_message, receivers
+        FROM gifts
+        WHERE scheduled_time <= ? AND canceled = 0`, now)
 
+	if err != nil {
+		log.Printf("Error retrieving scheduled gifts: %v", err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var giftID int
+		var userID int
+		var fileName string
+		var fileData []byte
+		var customMessage string
+		var receivers string
+
+		err := rows.Scan(&giftID, &userID, &fileName, &fileData, &customMessage, &receivers)
+		if err != nil {
+			log.Printf("Error scanning gift: %v", err)
+			continue
+		}
+
+		// ✅ Ensure the gift has recipients
+		if receivers == "" {
+			log.Printf("Gift ID %d has no recipients, skipping...", giftID)
+			continue
+		}
+
+		// ✅ Send the email with the gift attachment
+		err = sendGiftEmailToReceivers(fileName, fileData, customMessage, receivers)
+		if err != nil {
+			log.Printf("Failed to send gift ID %d: %v", giftID, err)
+			continue
+		}
+
+		// ✅ Mark the gift as sent in the database (canceled = 2)
+		_, err = db.Exec("UPDATE gifts SET canceled = 2 WHERE id = ?", giftID)
+		if err != nil {
+			log.Printf("Failed to update gift ID %d as sent: %v", giftID, err)
+		} else {
+			log.Printf("Successfully sent gift ID %d", giftID)
+		}
+	}
+}
 
 func isValidUsername(username string) bool {
 	matched, _ := regexp.MatchString(`^[a-zA-Z0-9_]{4,20}$`, username)
@@ -505,65 +611,64 @@ func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
-    enableCors(&w)
-    if r.Method == http.MethodOptions {
-        w.WriteHeader(http.StatusOK)
-        return
-    }
-    if r.Method != http.MethodPost {
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusMethodNotAllowed)
-        json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request method"})
-        return
-    }
-    var credentials struct {
-        Username string `json:"username"`
-        Password string `json:"password"`
-    }
-    if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusBadRequest)
-        json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request body"})
-        return
-    }
-    
-    var storedPassword string
-    var forceChange bool
-    var userID int
-    
-    err := db.QueryRow("SELECT id, password, force_password_change FROM users WHERE username = ?", 
-                      credentials.Username).Scan(&userID, &storedPassword, &forceChange)
-    if err != nil {
-        w.Header().Set("Content-Type", "application/json")
-        if err == sql.ErrNoRows {
-            json.NewEncoder(w).Encode(map[string]string{"error": "User not found"})
-        } else {
-            json.NewEncoder(w).Encode(map[string]string{"error": "Login error"})
-        }
-        w.WriteHeader(http.StatusNotFound)
-        return
-    }
-    
-    if err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(credentials.Password)); err != nil {
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusUnauthorized)
-        json.NewEncoder(w).Encode(map[string]string{"error": "Invalid username or password"})
-        return
-    }
-    
-    response := struct {
-        Message     string `json:"message"`
-        ForceChange bool   `json:"forceChange"`
-    }{
-        Message:     "Login successful",
-        ForceChange: forceChange,
-    }
-    
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(http.StatusOK)
-    json.NewEncoder(w).Encode(response)
-}
+	enableCors(&w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request method"})
+		return
+	}
+	var credentials struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request body"})
+		return
+	}
 
+	var storedPassword string
+	var forceChange bool
+	var userID int
+
+	err := db.QueryRow("SELECT id, password, force_password_change FROM users WHERE username = ?",
+		credentials.Username).Scan(&userID, &storedPassword, &forceChange)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		if err == sql.ErrNoRows {
+			json.NewEncoder(w).Encode(map[string]string{"error": "User not found"})
+		} else {
+			json.NewEncoder(w).Encode(map[string]string{"error": "Login error"})
+		}
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(credentials.Password)); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid username or password"})
+		return
+	}
+
+	response := struct {
+		Message     string `json:"message"`
+		ForceChange bool   `json:"forceChange"`
+	}{
+		Message:     "Login successful",
+		ForceChange: forceChange,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
 
 func changePasswordHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
@@ -621,74 +726,75 @@ func changePasswordHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
-    enableCors(&w)
-    if r.Method == http.MethodOptions {
-        w.WriteHeader(http.StatusOK)
-        return
-    }
-    if r.Method != http.MethodPost {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-        return
-    }
+	enableCors(&w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
 
-    // Parse multipart form with 10MB limit
-    if err := r.ParseMultipartForm(10 << 20); err != nil {
-        http.Error(w, "Error parsing form", http.StatusBadRequest)
-        return
-    }
+	// Parse multipart form with 10MB limit
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		http.Error(w, "Error parsing form", http.StatusBadRequest)
+		return
+	}
 
-    // Get username and validate
-    username := r.FormValue("username")
-    var userID int
-    err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
-    if err != nil {
-        http.Error(w, "User not found", http.StatusNotFound)
-        return
-    }
+	// Get username and validate
+	username := r.FormValue("username")
+	var userID int
+	err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
 
-    // Get file from form data
-    file, header, err := r.FormFile("file")
-    if err != nil {
-        http.Error(w, "Error retrieving file", http.StatusBadRequest)
-        return
-    }
-    defer file.Close()
+	// Get file from form data
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Error retrieving file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
 
-    // Read file data
-    fileData, err := io.ReadAll(file)
-    if err != nil {
-        http.Error(w, "Error reading file", http.StatusInternalServerError)
-        return
-    }
+	// Read file data
+	fileData, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, "Error reading file", http.StatusInternalServerError)
+		return
+	}
 
-    // Get custom message
-    customMessage := r.FormValue("emailMessage")
+	// Get custom message
+	customMessage := r.FormValue("emailMessage")
+	scheduledTime := r.FormValue("scheduledTime")
 
-    // Store in database
-    result, err := db.Exec(
-        "INSERT INTO gifts (user_id, file_name, file_data, custom_message) VALUES (?, ?, ?, ?)",
-        userID, header.Filename, fileData, customMessage,
-    )
-    if err != nil {
-        log.Printf("Database insert error: %v", err)
-        http.Error(w, "Failed to store gift", http.StatusInternalServerError)
-        return
-    }
+	// Store in database
+	result, err := db.Exec(
+		"INSERT INTO gifts (user_id, file_name, file_data, custom_message,scheduled_time) VALUES (?, ?, ?, ?,?)",
+		userID, header.Filename, fileData, customMessage, scheduledTime,
+	)
+	if err != nil {
+		log.Printf("Database insert error: %v", err)
+		http.Error(w, "Failed to store gift", http.StatusInternalServerError)
+		return
+	}
 
-    // Get the inserted gift ID
-    giftID, err := result.LastInsertId()
-    if err != nil {
-        log.Printf("Error getting last insert ID: %v", err)
-        http.Error(w, "Failed to retrieve gift ID", http.StatusInternalServerError)
-        return
-    }
+	// Get the inserted gift ID
+	giftID, err := result.LastInsertId()
+	if err != nil {
+		log.Printf("Error getting last insert ID: %v", err)
+		http.Error(w, "Failed to retrieve gift ID", http.StatusInternalServerError)
+		return
+	}
 
-    // Return success response with gift ID
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]interface{}{
-        "message": "File uploaded successfully",
-        "giftId":  giftID,
-    })
+	// Return success response with gift ID
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "File uploaded successfully",
+		"giftId":  giftID,
+	})
 }
 
 // Setting up new receiver logic //
@@ -766,7 +872,6 @@ func setupReceiversHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Receivers set up successfully. Inactivity check scheduled."))
 }
 
-
 func sendGiftEmailToReceivers(fileName string, fileData []byte, customMessage, receiversParam string) error {
 	// Parse the receivers from the comma-separated string.
 	var recipients []string
@@ -809,46 +914,42 @@ func sendGiftEmailToReceivers(fileName string, fileData []byte, customMessage, r
 }
 
 func GetReceiverHandler(w http.ResponseWriter, r *http.Request) {
-    enableCors(&w)
-    if r.Method == http.MethodOptions {
-        w.WriteHeader(http.StatusOK)
-        return
-    }
-    if r.Method != http.MethodGet {
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusMethodNotAllowed)
-        json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request method"})
-        return
-    }
-    username := r.URL.Query().Get("username")
-    if username == "" {
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusBadRequest)
-        json.NewEncoder(w).Encode(map[string]string{"error": "Username is required"})
-        return
-    }
-    var receivers string
-    err := db.QueryRow("SELECT receivers FROM users WHERE username = ?", username).Scan(&receivers)
-    if err != nil {
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusNotFound)
-        json.NewEncoder(w).Encode(map[string]string{"error": "User not found"})
-        return
-    }
-    var emails []string
-    if receivers != "" {
-        emails = strings.Split(receivers, ",")
-        for i, email := range emails {
-            emails[i] = strings.TrimSpace(email)
-        }
-    }
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(emails)
+	enableCors(&w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request method"})
+		return
+	}
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Username is required"})
+		return
+	}
+	var receivers string
+	err := db.QueryRow("SELECT receivers FROM users WHERE username = ?", username).Scan(&receivers)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "User not found"})
+		return
+	}
+	var emails []string
+	if receivers != "" {
+		emails = strings.Split(receivers, ",")
+		for i, email := range emails {
+			emails[i] = strings.TrimSpace(email)
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(emails)
 }
-
-
-
-
 
 func scheduleInactivityCheckHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
@@ -862,9 +963,9 @@ func scheduleInactivityCheckHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Expect payload with username and customMessage.
 	var req struct {
-	Username      string `json:"username"`
-	CustomMessage string `json:"customMessage"`
-    }
+		Username      string `json:"username"`
+		CustomMessage string `json:"customMessage"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -929,7 +1030,6 @@ func scheduleInactivityCheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Inactivity check scheduled."))
 }
 
-
 // sendAllGiftsEmail sends an email to the primary email with all gifts attached.
 // The receivers parameter (a comma-separated string) is added to the "To" field.
 func sendAllGiftsEmail(primaryEmail string, gifts []Gift, customMessage, receivers string) error {
@@ -962,7 +1062,6 @@ func sendAllGiftsEmail(primaryEmail string, gifts []Gift, customMessage, receive
 	d := gomail.NewDialer(smtpHost, smtpPort, senderEmail, senderPassword)
 	return d.DialAndSend(m)
 }
-
 
 // sendCheckEmail sends a simple email with the given subject and body.
 func sendCheckEmail(to, subject, body string) error {

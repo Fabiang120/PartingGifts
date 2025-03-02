@@ -5,6 +5,7 @@ const NewMemory = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [message, setMessage] = useState("");
   const [customMessage, setCustomMessage] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
   const [username, setUsername] = useState("");
   const router = useRouter();
 
@@ -41,6 +42,7 @@ const NewMemory = () => {
     formData.append("username", username);
     formData.append("file", selectedFile);
     formData.append("emailMessage", customMessage);
+    formData.append("scheduledTime", scheduledTime);
 
     try {
       const response = await fetch("http://localhost:8080/upload-gift", {
@@ -109,6 +111,20 @@ const NewMemory = () => {
             placeholder="Enter a custom message for the email (optional)"
           />
         </div>
+        {/*Schedule option*/}
+        <div className="mt-4 w-full md:w-1/2">
+          <label htmlFor="scheduleTime" className="text-sm text-gray-700">
+            Schedule Time(Optional)
+          </label>
+          <input
+          type="datetime-local"
+          id="scheduleTime"
+          value={scheduledTime}
+          onChange={(e) => setScheduledTime(e.target.value)}
+          className="w-full p-2 border-gray-300 rounded-lg focus:outline-none focus:ring focus:ring-blue-300"
+          />
+        </div>
+
 
         {message && <p className="mt-4 text-sm text-green-600">{message}</p>}
         <button

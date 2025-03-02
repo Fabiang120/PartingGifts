@@ -8,6 +8,7 @@ const Dashboard = () => {
   const [receiverEmails, setReceiverEmails] = useState([]);
   const [giftCount, setGiftCount] = useState(0);
   const [gifts, setGifts] = useState([]); // Always an array
+  const [scheduledGifts, setScheduledGifts] = useState([]); 
   const [selectedGift, setSelectedGift] = useState(null);
   const [pendingMessages, setPendingMessages] = useState(0);
 
@@ -41,6 +42,14 @@ const Dashboard = () => {
             console.error("Error fetching gifts:", error);
             setGifts([]);
           });
+          // Fetch scheduled gifts ✅
+        fetch(`http://localhost:8080/scheduled-gifts?username=${storedUsername}`)
+        .then((res) => res.json())
+        .then((data) => setScheduledGifts(data || []))
+        .catch((error) => {
+          console.error("Error fetching scheduled gifts:", error);
+          setScheduledGifts([]);
+        });
 
         // Fetch receiver emails
         fetch(`http://localhost:8080/get-receivers?username=${storedUsername}`)
@@ -144,6 +153,24 @@ const Dashboard = () => {
           >
             New Memory
           </button>
+        </div>
+        {/* Scheduled Gifts Section ✅ */}
+        <div>
+          <h2 className="text-lg font-bold mb-4 text-black">Scheduled Gifts</h2>
+          {scheduledGifts.length === 0 ? (
+            <p className="text-gray-500">No scheduled gifts.</p>
+          ) : (
+            <ul className="space-y-4">
+              {scheduledGifts.map((gift) => (
+                <li key={gift.id} className="border p-4 rounded-lg flex flex-col bg-gray-50">
+                  <p className="text-lg font-semibold text-black">{gift.file_name}</p>
+                  <p className="text-sm text-gray-600">
+                    <strong>Scheduled Time:</strong> {new Date(gift.scheduled_time).toLocaleString()}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Previous Memories Section */}
