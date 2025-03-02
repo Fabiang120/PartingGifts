@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/router"; // Import useRouter for navigation
+import { useRouter } from "next/router";
 
 const Dashboard = () => {
   const router = useRouter();
@@ -7,9 +7,9 @@ const Dashboard = () => {
   const [username, setUsername] = useState("");
   const [receiverEmails, setReceiverEmails] = useState([]);
   const [giftCount, setGiftCount] = useState(0);
-  const [gifts, setGifts] = useState([]);
+  const [gifts, setGifts] = useState([]); // Always an array
   const [selectedGift, setSelectedGift] = useState(null);
-  const [pendingMessages, setPendingMessages] = useState(null);
+  const [pendingMessages, setPendingMessages] = useState(0);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -17,36 +17,49 @@ const Dashboard = () => {
       console.log("Retrieved username:", storedUsername);
       if (storedUsername) {
         setUsername(storedUsername);
+
+        // Fetch gift count
         fetch(`http://localhost:8080/gift-count?username=${storedUsername}`)
           .then((res) => res.json())
           .then((data) => {
             console.log("Gift count data:", data);
-            setGiftCount(data.count);
+            setGiftCount(data.count || 0);
           })
           .catch((error) => {
             console.error("Error fetching gift count:", error);
             setGiftCount(0);
           });
+
+        // Fetch gifts (ensure data is an array)
         fetch(`http://localhost:8080/gifts?username=${storedUsername}`)
           .then((res) => res.json())
           .then((data) => {
             console.log("Gifts data:", data);
-            setGifts(data);
+            setGifts(data || []);
           })
-          .catch((error) =>
-            console.error("Error fetching gifts:", error)
-          );
-        // Fetch receiver emails from the database.
+          .catch((error) => {
+            console.error("Error fetching gifts:", error);
+            setGifts([]);
+          });
+
+        // Fetch receiver emails
         fetch(`http://localhost:8080/get-receivers?username=${storedUsername}`)
           .then((res) => res.json())
           .then((data) => {
-            console.log("Receiver emails:", data);
-            setReceiverEmails(data);
+            if (data.error) {
+              console.error("Error from get-receivers:", data.error);
+              setReceiverEmails([]);
+            } else {
+              console.log("Receiver emails:", data);
+              setReceiverEmails(data || []);
+            }
           })
-          .catch((error) =>
-            console.error("Error fetching receiver emails:", error)
-          );
-        // Fetch Pending Messages Count.
+          .catch((error) => {
+            console.error("Error fetching receiver emails:", error);
+            setReceiverEmails([]);
+          });
+
+        // Fetch pending messages count
         fetch("http://localhost:8080/dashboard/pending-gifts")
           .then((res) => res.json())
           .then((data) => {
@@ -58,7 +71,8 @@ const Dashboard = () => {
             setPendingMessages(0);
           });
       }
-      // Also check sessionStorage for receiverEmails (fallback).
+
+      // Fallback: retrieve receiverEmails from sessionStorage if available.
       const storedEmails = sessionStorage.getItem("receiverEmails");
       if (storedEmails) {
         try {
@@ -72,6 +86,7 @@ const Dashboard = () => {
     }
   }, []);
 
+  // Navigation handlers
   const handleNewMemoryClick = () => {
     router.push("/new-memory");
   };
@@ -133,9 +148,7 @@ const Dashboard = () => {
 
         {/* Previous Memories Section */}
         <div>
-          <h2 className="text-lg font-bold mb-4 text-black">
-            Previous Memories
-          </h2>
+          <h2 className="text-lg font-bold mb-4 text-black">Previous Memories</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
             {/* Render your memory thumbnails here */}
           </div>
@@ -145,17 +158,21 @@ const Dashboard = () => {
         <div>
           <h2 className="text-lg font-bold mb-4 text-black">Your Gifts</h2>
           <div className="flex space-x-4 overflow-x-auto">
-            {gifts.map((gift) => (
+            {(gifts || []).map((gift) => (
               <div
-                key={gift.id}
+                key={gift.ID} // Note: Using capitalized property from Go
                 className="min-w-[200px] p-4 bg-white rounded-lg shadow-md flex flex-col items-center"
               >
-                {gift.file_name ? (
-                  <p className="text-sm font-bold text-black">
-                    File: {gift.file_name}
-                  </p>
+                {gift.FileName && gift.FileName.trim() !== "" ? (
+                  <>
+                    <p className="text-sm font-bold text-black">
+                      File: {gift.FileName}
+                    </p>
+                  </>
                 ) : (
-                  <p className="text-sm font-bold text-black">Message</p>
+                  <p className="text-sm font-bold text-black">
+                    Message: {gift.CustomMessage || "No message provided."}
+                  </p>
                 )}
                 <button
                   className="mt-2 px-4 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600"
@@ -171,7 +188,7 @@ const Dashboard = () => {
         {/* Receiver Emails Section */}
         <div className="p-6 bg-white rounded-lg shadow-md">
           <h2 className="text-lg font-bold mb-4 text-black">Receiver Emails</h2>
-          {receiverEmails.length > 0 ? (
+          {receiverEmails && receiverEmails.length > 0 ? (
             <ul className="list-disc pl-5">
               {receiverEmails.map((email, index) => (
                 <li key={index} className="text-black">
@@ -190,30 +207,37 @@ const Dashboard = () => {
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white p-6 rounded-lg max-w-lg w-full">
             <h2 className="text-xl font-bold mb-4">Gift Details</h2>
-            {selectedGift.file_name ? (
-              <div>
-                {isImageFile(selectedGift.file_name) ? (
-                  // Display the image preview using the /download-gift route.
+            {selectedGift.FileName && selectedGift.FileName.trim() !== "" ? (
+              <>
+                <p className="text-sm font-bold text-black">
+                  File: {selectedGift.FileName}
+                </p>
+                {isImageFile(selectedGift.FileName) ? (
                   <img
-                    src={`http://localhost:8080/download-gift?id=${selectedGift.id}`}
-                    alt={selectedGift.file_name}
+                    src={`http://localhost:8080/download-gift?id=${selectedGift.ID}`}
+                    alt={selectedGift.FileName}
                     className="mb-4 max-h-96 object-contain"
+                    onError={(e) => {
+                      console.error("Image failed to load:", e.target.src);
+                      e.target.style.display = "none";
+                      const fallback = document.createElement("p");
+                      fallback.textContent = "Image failed to load";
+                      e.target.parentNode.appendChild(fallback);
+                    }}
                   />
                 ) : (
-                  // For non-image files, display a download link.
                   <a
-                    href={`http://localhost:8080/download-gift?id=${selectedGift.id}`}
-                    download={selectedGift.file_name}
+                    href={`http://localhost:8080/download-gift?id=${selectedGift.ID}`}
+                    download={selectedGift.FileName}
                     className="text-blue-500 underline mb-4 block"
                   >
-                    Download {selectedGift.file_name}
+                    Download {selectedGift.FileName}
                   </a>
                 )}
-              </div>
+              </>
             ) : (
-              <p className="mb-2">
-                <span className="font-bold">Message:</span>{" "}
-                {selectedGift.custom_message}
+              <p className="text-sm font-bold text-black">
+                Message: {selectedGift.CustomMessage || "No message provided."}
               </p>
             )}
             <button

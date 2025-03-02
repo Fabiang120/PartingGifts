@@ -1,13 +1,14 @@
 import React, { useState } from "react";
+import { useRouter } from "next/router";
 
 const MemoryUploaded = () => {
-  const [progress, setProgress] = useState(100); // Simulate progress completion
   const [receiverInfo, setReceiverInfo] = useState({
     name: "",
     email: "",
     phone: "",
     comments: "",
   });
+  const router = useRouter();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -15,39 +16,45 @@ const MemoryUploaded = () => {
   };
 
   const handleSave = async () => {
-    // Replace this giftId with a real value if available.
-    const giftId = 1;
+    // Get the username and current gift ID from sessionStorage
+    const username = sessionStorage.getItem("username");
+    const giftId = sessionStorage.getItem("currentGiftId");
 
-    // Construct payload based on backend expectations.
+    if (!username || !giftId) {
+      alert("Session data missing. Please start over.");
+      return;
+    }
+
+    // Build payload for receivers setup.
     const payload = {
-      giftId: giftId,
-      receivers: receiverInfo.email, // For multiple receivers, use a comma-separated string.
+      giftId: parseInt(giftId, 10),
+      receivers: receiverInfo.email, // assuming this contains one or comma‐separated emails
       customMessage: receiverInfo.comments,
     };
 
     try {
       const response = await fetch("http://localhost:8080/setup-receivers", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       if (response.ok) {
-        alert("Memory saved and email sent successfully!");
+        alert("Receivers set up successfully. Inactivity check scheduled.");
+        // Clear the gift ID from session storage after a successful setup.
+        sessionStorage.removeItem("currentGiftId");
+        router.push("/dashboard");
       } else {
         const errorText = await response.text();
-        alert("Memory saved but failed to send email: " + errorText);
+        alert(`Failed to setup receivers: ${errorText}`);
       }
     } catch (error) {
-      console.error("Error saving memory:", error);
-      alert("Error occurred while saving memory: " + error.message);
+      console.error("Setup error:", error);
+      alert("Error setting up receivers: " + error.message);
     }
   };
 
   const handleDelete = () => {
-    console.log("Memory deleted.");
     alert("Memory deleted.");
   };
 
@@ -64,82 +71,61 @@ const MemoryUploaded = () => {
 
       {/* Main Content */}
       <main className="flex flex-col items-center w-full max-w-5xl p-8 bg-white rounded-lg shadow-md mt-8 space-y-8">
-        {/* Progress Bar Section */}
-        <div className="w-full">
-          <div className="flex items-center justify-between text-sm text-gray-700 mb-2">
-            <p>Memory uploaded</p>
-            <p>{progress}%</p>
+        <h2 className="text-lg font-bold mb-4 text-gray-700">Receiver Information</h2>
+        <div className="space-y-4 w-full">
+          <div className="flex flex-col">
+            <label htmlFor="name" className="text-sm font-medium text-gray-700">
+              Name
+            </label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={receiverInfo.name}
+              onChange={handleInputChange}
+              className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+            />
           </div>
-          <div className="w-full h-4 bg-gray-300 rounded-full">
-            <div
-              className="h-4 bg-blue-500 rounded-full"
-              style={{ width: `${progress}%` }}
-            ></div>
+          <div className="flex flex-col">
+            <label htmlFor="email" className="text-sm font-medium text-gray-700">
+              Email Address
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={receiverInfo.email}
+              onChange={handleInputChange}
+              className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+            />
           </div>
-        </div>
-
-        {/* Receiver Information Form */}
-        <div className="w-full bg-blue-50 p-6 rounded-lg shadow-md">
-          <h2 className="text-lg font-bold mb-4 text-gray-700">
-            Receiver Information
-          </h2>
-          <div className="space-y-4">
-            <div className="flex flex-col">
-              <label htmlFor="name" className="text-sm font-medium text-gray-700">
-                Name
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={receiverInfo.name}
-                onChange={handleInputChange}
-                className="p-2 border border-gray-300 rounded-lg focus:outline-none text-black focus:ring-2 focus:ring-blue-300"
-              />
-            </div>
-            <div className="flex flex-col">
-              <label htmlFor="email" className="text-sm font-medium text-gray-700">
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={receiverInfo.email}
-                onChange={handleInputChange}
-                className="p-2 border border-gray-300 rounded-lg focus:outline-none text-black focus:ring-2 focus:ring-blue-300"
-              />
-            </div>
-            <div className="flex flex-col">
-              <label htmlFor="phone" className="text-sm font-medium text-gray-700">
-                Phone Number
-              </label>
-              <input
-                type="text"
-                id="phone"
-                name="phone"
-                value={receiverInfo.phone}
-                onChange={handleInputChange}
-                className="p-2 border border-gray-300 rounded-lg focus:outline-none text-black focus:ring-2 focus:ring-blue-300"
-              />
-            </div>
-            <div className="flex flex-col">
-              <label htmlFor="comments" className="text-sm font-medium text-gray-700">
-                Any Comments
-              </label>
-              <textarea
-                id="comments"
-                name="comments"
-                value={receiverInfo.comments}
-                onChange={handleInputChange}
-                rows="4"
-                className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-              />
-            </div>
+          <div className="flex flex-col">
+            <label htmlFor="phone" className="text-sm font-medium text-gray-700">
+              Phone Number
+            </label>
+            <input
+              type="text"
+              id="phone"
+              name="phone"
+              value={receiverInfo.phone}
+              onChange={handleInputChange}
+              className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label htmlFor="comments" className="text-sm font-medium text-gray-700">
+              Any Comments
+            </label>
+            <textarea
+              id="comments"
+              name="comments"
+              value={receiverInfo.comments}
+              onChange={handleInputChange}
+              rows="4"
+              className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+            />
           </div>
         </div>
-
-        {/* Save and Delete Buttons */}
         <div className="flex space-x-4">
           <button
             onClick={handleSave}
