@@ -8,7 +8,6 @@ const Dashboard = () => {
   const [receiverEmails, setReceiverEmails] = useState([]);
   const [giftCount, setGiftCount] = useState(0);
   const [gifts, setGifts] = useState([]); // Always an array
-  const [scheduledGifts, setScheduledGifts] = useState([]); 
   const [selectedGift, setSelectedGift] = useState(null);
   const [pendingMessages, setPendingMessages] = useState(0);
 
@@ -42,14 +41,6 @@ const Dashboard = () => {
             console.error("Error fetching gifts:", error);
             setGifts([]);
           });
-          // Fetch scheduled gifts ✅
-        fetch(`http://localhost:8080/scheduled-gifts?username=${storedUsername}`)
-        .then((res) => res.json())
-        .then((data) => setScheduledGifts(data || []))
-        .catch((error) => {
-          console.error("Error fetching scheduled gifts:", error);
-          setScheduledGifts([]);
-        });
 
         // Fetch receiver emails
         fetch(`http://localhost:8080/get-receivers?username=${storedUsername}`)
@@ -94,6 +85,39 @@ const Dashboard = () => {
       }
     }
   }, []);
+
+  const stopPendingGift = async (giftId) => {
+    console.log("Received gift ID:", giftId);
+  
+    if (!giftId || isNaN(giftId)) {
+      alert("Invalid gift ID. Please try again.");
+      return;
+    }
+  
+    try {
+      const response = await fetch(`http://localhost:8080/stop-pending-gift?id=${giftId}`, {
+        method: "DELETE",
+      });
+  
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to stop gift: ${errorText}`);
+      }
+  
+      alert("Pending gift has been stopped successfully!");
+  
+      // Update UI: Remove the canceled gift from the pending list
+      setGifts((prevGifts) => prevGifts.filter((gift) => gift.id !== giftId));
+  
+    } catch (error) {
+      console.error("Error stopping pending gift:", error);
+      alert("Error stopping gift. Please try again.");
+    }
+  };
+  
+
+
+  
 
   // Navigation handlers
   const handleNewMemoryClick = () => {
@@ -154,24 +178,6 @@ const Dashboard = () => {
             New Memory
           </button>
         </div>
-        {/* Scheduled Gifts Section ✅ */}
-        <div>
-          <h2 className="text-lg font-bold mb-4 text-black">Scheduled Gifts</h2>
-          {scheduledGifts.length === 0 ? (
-            <p className="text-gray-500">No scheduled gifts.</p>
-          ) : (
-            <ul className="space-y-4">
-              {scheduledGifts.map((gift) => (
-                <li key={gift.id} className="border p-4 rounded-lg flex flex-col bg-gray-50">
-                  <p className="text-lg font-semibold text-black">{gift.file_name}</p>
-                  <p className="text-sm text-gray-600">
-                    <strong>Scheduled Time:</strong> {new Date(gift.scheduled_time).toLocaleString()}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
 
         {/* Previous Memories Section */}
         <div>
@@ -179,6 +185,38 @@ const Dashboard = () => {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
             {/* Render your memory thumbnails here */}
           </div>
+        </div>
+        {/* Pending Messages Section */}
+        <div>
+          <h2 className="text-lg font-bold mb-4 text-black">Pending Gifts</h2>
+          {pendingMessages === 0 ? (
+            <p className="text-gray-500">No pending gifts.</p>
+          ) : (
+            <ul className="space-y-4">
+              {gifts
+                .filter((gift) => !gift.scheduled_time) // Only show pending gifts
+                .map((gift) => (
+                  <li key={gift.id} className="border p-4 rounded-lg flex flex-col bg-gray-50">
+                    <p className="text-lg font-semibold text-black">
+                      {gift.file_name || "Message Gift"}
+                    </p>
+                    
+                    {/* Debugging Log */}
+                    {console.log("Gift ID in frontend:", gift.id, "Full Object:", gift)}
+
+                    <button
+                      className="mt-2 px-4 py-1 bg-red-500 text-white rounded-md hover:bg-red-600"
+                      onClick={() => {
+                        console.log("Stopping gift with ID:", gift.id);
+                        stopPendingGift(gift.id);
+                      }}
+                    >
+                      Stop Pending Gift
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          )}
         </div>
 
         {/* Gifts Section */}
@@ -211,6 +249,7 @@ const Dashboard = () => {
             ))}
           </div>
         </div>
+
 
         {/* Receiver Emails Section */}
         <div className="p-6 bg-white rounded-lg shadow-md">

@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings" // required for splitting secondary emails
 	"time"
 	"unicode"
@@ -73,7 +74,6 @@ func main() {
         custom_message TEXT,
         receivers TEXT,  -- Add this column
         upload_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-		scheduled_time DATETIME,
         FOREIGN KEY(user_id) REFERENCES users(id)
     );
     `
@@ -97,15 +97,7 @@ func main() {
 	http.HandleFunc("/dashboard/pending-gifts", pendingGiftsHandler)
 	http.HandleFunc("/get-receivers", GetReceiverHandler)
 	http.HandleFunc("/schedule-check", scheduleInactivityCheckHandler)
-	http.HandleFunc("/scheduled-gifts", getScheduledGiftsHandler)
-
-	// ✅ Automatically run sendScheduledGifts every minute
-	go func() {
-		for {
-			sendScheduledGifts()
-			time.Sleep(1 * time.Minute) // Check every minute
-		}
-	}()
+	http.HandleFunc("/stop-pending-gift", stopPendingGiftHandler)
 
 	fmt.Println("Server listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
@@ -357,108 +349,6 @@ func getGiftsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(gifts)
 }
-func getScheduledGiftsHandler(w http.ResponseWriter, r *http.Request) {
-	enableCors(&w)
-	if r.Method != http.MethodGet {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
-
-	username := r.URL.Query().Get("username")
-	if username == "" {
-		http.Error(w, "Username is required", http.StatusBadRequest)
-		return
-	}
-
-	var userID int
-	err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	rows, err := db.Query(`
-        SELECT id, file_name, scheduled_time 
-        FROM gifts 
-        WHERE user_id = ? AND scheduled_time IS NOT NULL
-        ORDER BY scheduled_time ASC
-    `, userID)
-	if err != nil {
-		http.Error(w, "Error retrieving scheduled gifts", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var scheduledGifts []map[string]interface{}
-	for rows.Next() {
-		var id int
-		var fileName, scheduledTime string
-		if err := rows.Scan(&id, &fileName, &scheduledTime); err != nil {
-			continue
-		}
-		scheduledGifts = append(scheduledGifts, map[string]interface{}{
-			"id":             id,
-			"file_name":      fileName,
-			"scheduled_time": scheduledTime,
-		})
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(scheduledGifts)
-}
-
-func sendScheduledGifts() {
-	now := time.Now()
-
-	// ✅ Retrieve only non-canceled gifts that are due for sending
-	rows, err := db.Query(`
-        SELECT id, user_id, file_name, file_data, custom_message, receivers
-        FROM gifts
-        WHERE scheduled_time <= ? AND canceled = 0`, now)
-
-	if err != nil {
-		log.Printf("Error retrieving scheduled gifts: %v", err)
-		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var giftID int
-		var userID int
-		var fileName string
-		var fileData []byte
-		var customMessage string
-		var receivers string
-
-		err := rows.Scan(&giftID, &userID, &fileName, &fileData, &customMessage, &receivers)
-		if err != nil {
-			log.Printf("Error scanning gift: %v", err)
-			continue
-		}
-
-		// ✅ Ensure the gift has recipients
-		if receivers == "" {
-			log.Printf("Gift ID %d has no recipients, skipping...", giftID)
-			continue
-		}
-
-		// ✅ Send the email with the gift attachment
-		err = sendGiftEmailToReceivers(fileName, fileData, customMessage, receivers)
-		if err != nil {
-			log.Printf("Failed to send gift ID %d: %v", giftID, err)
-			continue
-		}
-
-		// ✅ Mark the gift as sent in the database (canceled = 2)
-		_, err = db.Exec("UPDATE gifts SET canceled = 2 WHERE id = ?", giftID)
-		if err != nil {
-			log.Printf("Failed to update gift ID %d as sent: %v", giftID, err)
-		} else {
-			log.Printf("Successfully sent gift ID %d", giftID)
-		}
-	}
-}
-
 func isValidUsername(username string) bool {
 	matched, _ := regexp.MatchString(`^[a-zA-Z0-9_]{4,20}$`, username)
 	return matched
@@ -768,12 +658,11 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Get custom message
 	customMessage := r.FormValue("emailMessage")
-	scheduledTime := r.FormValue("scheduledTime")
 
 	// Store in database
 	result, err := db.Exec(
-		"INSERT INTO gifts (user_id, file_name, file_data, custom_message,scheduled_time) VALUES (?, ?, ?, ?,?)",
-		userID, header.Filename, fileData, customMessage, scheduledTime,
+		"INSERT INTO gifts (user_id, file_name, file_data, custom_message) VALUES (?, ?, ?, ?)",
+		userID, header.Filename, fileData, customMessage,
 	)
 	if err != nil {
 		log.Printf("Database insert error: %v", err)
@@ -795,6 +684,48 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "File uploaded successfully",
 		"giftId":  giftID,
 	})
+}
+
+func stopPendingGiftHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Log request details
+	giftID := r.URL.Query().Get("id")
+	log.Printf("Received request to stop gift ID: %s", giftID)
+
+	if giftID == "" {
+		http.Error(w, "Invalid gift ID", http.StatusBadRequest)
+		return
+	}
+
+	// Convert ID to int
+	id, err := strconv.Atoi(giftID)
+	if err != nil {
+		http.Error(w, "Invalid gift ID format", http.StatusBadRequest)
+		return
+	}
+
+	// Ensure gift exists before deleting
+	var exists bool
+	err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM gifts WHERE id = ?)", id).Scan(&exists)
+	if err != nil || !exists {
+		http.Error(w, "Gift not found", http.StatusNotFound)
+		return
+	}
+
+	// Delete gift from database
+	_, err = db.Exec("DELETE FROM gifts WHERE id = ?", id)
+	if err != nil {
+		http.Error(w, "Failed to delete gift", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Gift stopped successfully"))
 }
 
 // Setting up new receiver logic //
