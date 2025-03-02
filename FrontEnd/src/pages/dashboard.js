@@ -11,7 +11,6 @@ const Dashboard = () => {
   const [selectedGift, setSelectedGift] = useState(null);
   const [pendingMessages, setPendingMessages] = useState(null);
 
-
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedUsername = sessionStorage.getItem("username");
@@ -34,19 +33,32 @@ const Dashboard = () => {
             console.log("Gifts data:", data);
             setGifts(data);
           })
-          .catch((error) => console.error("Error fetching gifts:", error));
-          // Fetch Pending Messages Count
+          .catch((error) =>
+            console.error("Error fetching gifts:", error)
+          );
+        // Fetch receiver emails from the database.
+        fetch(`http://localhost:8080/get-receivers?username=${storedUsername}`)
+          .then((res) => res.json())
+          .then((data) => {
+            console.log("Receiver emails:", data);
+            setReceiverEmails(data);
+          })
+          .catch((error) =>
+            console.error("Error fetching receiver emails:", error)
+          );
+        // Fetch Pending Messages Count.
         fetch("http://localhost:8080/dashboard/pending-gifts")
-        .then((res) => res.json())
-        .then((data) => {
-          console.log("Pending messages data:", data);
-          setPendingMessages(data.pending_messages || 0);
-        })
-        .catch((error) => {
-          console.error("Error fetching pending messages:", error);
-          setPendingMessages(0);
-        });
+          .then((res) => res.json())
+          .then((data) => {
+            console.log("Pending messages data:", data);
+            setPendingMessages(data.pending_messages || 0);
+          })
+          .catch((error) => {
+            console.error("Error fetching pending messages:", error);
+            setPendingMessages(0);
+          });
       }
+      // Also check sessionStorage for receiverEmails (fallback).
       const storedEmails = sessionStorage.getItem("receiverEmails");
       if (storedEmails) {
         try {
@@ -100,13 +112,13 @@ const Dashboard = () => {
             Hello {username || "[user]"}!
           </h1>
           <p className="text-red-500">
-            You have {pendingMessages !== null ? pendingMessages : "Loading..."} unsent messages
-           </p>
-          <p className="mt-2 text-black">
-            Total messages created: {giftCount}
+            You have{" "}
+            {pendingMessages !== null ? pendingMessages : "Loading..."} unsent messages
           </p>
-          <p className="mt-2  text-black">
-          Pending messages to schedule: {pendingMessages !== null ? pendingMessages : "Loading..."}
+          <p className="mt-2 text-black">Total messages created: {giftCount}</p>
+          <p className="mt-2 text-black">
+            Pending messages to schedule:{" "}
+            {pendingMessages !== null ? pendingMessages : "Loading..."}
           </p>
           <p className="mt-2 text-blue-500 hover:underline cursor-pointer">
             View Calendar
@@ -158,9 +170,7 @@ const Dashboard = () => {
 
         {/* Receiver Emails Section */}
         <div className="p-6 bg-white rounded-lg shadow-md">
-          <h2 className="text-lg font-bold mb-4 text-black">
-            Receiver Emails
-          </h2>
+          <h2 className="text-lg font-bold mb-4 text-black">Receiver Emails</h2>
           {receiverEmails.length > 0 ? (
             <ul className="list-disc pl-5">
               {receiverEmails.map((email, index) => (

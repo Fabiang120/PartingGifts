@@ -72,18 +72,21 @@ func main() {
 
 	fmt.Println("SQLite database is set up and the tables are ready!")
 
-	// Register endpoints.
-	http.HandleFunc("/create-account", createAccountHandler)
-	http.HandleFunc("/update-emails", personalDetailsHandler)
-	http.HandleFunc("/upload-gift", uploadGiftHandler)
-	http.HandleFunc("/login", loginHandler)
-	http.HandleFunc("/reset-password", resetPasswordHandler)
-	http.HandleFunc("/change-password", changePasswordHandler)
-	http.HandleFunc("/setup-receivers", setupReceiversHandler)
-	http.HandleFunc("/gift-count", giftCountHandler)
-	http.HandleFunc("/dashboard/pending-gifts", pendingGiftsHandler)
-	http.HandleFunc("/gifts", getGiftsHandler)
-	http.HandleFunc("/download-gift", downloadGiftHandler)
+    // Register endpoints.
+    http.HandleFunc("/create-account", createAccountHandler)
+    http.HandleFunc("/update-emails", personalDetailsHandler)
+    http.HandleFunc("/upload-gift", uploadGiftHandler)
+    http.HandleFunc("/login", loginHandler)
+    http.HandleFunc("/reset-password", resetPasswordHandler)
+    http.HandleFunc("/change-password", changePasswordHandler)
+    http.HandleFunc("/setup-receivers", setupReceiversHandler)
+    http.HandleFunc("/gift-count", giftCountHandler)
+    http.HandleFunc("/gifts", getGiftsHandler)
+    http.HandleFunc("/download-gift", downloadGiftHandler)
+    http.HandleFunc("/dashboard/pending-gifts", pendingGiftsHandler)
+    http.HandleFunc("/get-receivers", GetReceiverHandler)
+    http.HandleFunc("/schedule-check", scheduleInactivityCheckHandler)
+
 
 	fmt.Println("Server listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
@@ -727,6 +730,17 @@ func setupReceiversHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Gift email sent successfully to receivers."))
 }
 
+<<<<<<< Updated upstream
+
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
+
+=======
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
 func sendGiftEmailToReceivers(fileName string, fileData []byte, customMessage, receiversParam string) error {
 	// Parse the receivers from the comma-separated string.
 	var recipients []string
@@ -772,3 +786,129 @@ func sendGiftEmailToReceivers(fileName string, fileData []byte, customMessage, r
 	}
 	return nil
 }
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
+func GetReceiverHandler(w http.ResponseWriter, r *http.Request){
+    enableCors(&w)
+    if r.Method == http.MethodOptions {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+    if r.Method != http.MethodGet {
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return
+    }
+    username := r.URL.Query().Get("username")
+    if username == "" {
+        http.Error(w, "Username is required", http.StatusBadRequest)
+        return
+    }
+    var receivers string
+    err := db.QueryRow("SELECT receivers FROM users WHERE username = ?", username).Scan(&receivers)
+    if err != nil {
+        http.Error(w, "User not found", http.StatusNotFound)
+        return
+    }
+    // Split the receivers (assumed comma-separated) into an array.
+    var emails []string
+    if receivers != "" {
+        emails = strings.Split(receivers, ",")
+        for i, email := range emails {
+            emails[i] = strings.TrimSpace(email)
+        }
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(emails)
+}
+<<<<<<< Updated upstream
+=======
+
+// New scheduleInactivityCheckHandler: Accepts username and giftId.
+// It waits 1 minute, sends a check email, then after an additional minute sends the gift email.
+func scheduleInactivityCheckHandler(w http.ResponseWriter, r *http.Request) {
+    enableCors(&w)
+    if r.Method == http.MethodOptions {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+    if r.Method != http.MethodPost {
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return
+    }
+    // Expect payload with username and giftId.
+    var req struct {
+        Username string `json:"username"`
+        GiftID   int    `json:"giftId"`
+    }
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+    // Get the user's primary email.
+    var primaryEmail string
+    err := db.QueryRow("SELECT primary_contact_email FROM users WHERE username = ?", req.Username).Scan(&primaryEmail)
+    if err != nil {
+        http.Error(w, "User not found", http.StatusNotFound)
+        return
+    }
+    // Get gift details.
+    var fileName string
+    var fileData []byte
+    var customMessage string
+    err = db.QueryRow("SELECT file_name, file_data, custom_message FROM gifts WHERE id = ?", req.GiftID).
+        Scan(&fileName, &fileData, &customMessage)
+    if err != nil {
+        http.Error(w, "Gift not found", http.StatusNotFound)
+        return
+    }
+    // Schedule the inactivity check and gift sending in a goroutine.
+    go func() {
+        // Wait 1 minute, then send the inactivity check email.
+        time.Sleep(1 * time.Minute)
+        checkSubject := "Are you still alive? Your gifts will be sent soon"
+        checkBody := "Hello,\n\nWe noticed you haven't been active recently. If you are still there, please log in and click the 'Stop' button to cancel the gift sending process."
+        if err := sendCheckEmail(primaryEmail, checkSubject, checkBody); err != nil {
+            log.Printf("Error sending inactivity check email to %s: %v", primaryEmail, err)
+            return
+        }
+        log.Printf("Inactivity check email sent successfully to %s", primaryEmail)
+        // Wait an additional minute.
+        time.Sleep(1 * time.Minute)
+        // Retrieve the receivers from the database.
+        var receivers string
+        err = db.QueryRow("SELECT receivers FROM users WHERE username = ?", req.Username).Scan(&receivers)
+        if err != nil {
+            log.Printf("Error retrieving receivers for user %s: %v", req.Username, err)
+            return
+        }
+        // Send the gift email.
+        if err := sendGiftEmailToReceivers(fileName, fileData, customMessage, receivers); err != nil {
+            log.Printf("Error sending gift email to receivers for user %s: %v", req.Username, err)
+        } else {
+            log.Printf("Gift email sent successfully to receivers for user %s", req.Username)
+        }
+    }()
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Inactivity check scheduled."))
+}
+
+
+// sendCheckEmail sends a simple email with the given subject and body.
+func sendCheckEmail(to, subject, body string) error {
+    smtpHost := "smtp.gmail.com"
+    smtpPort := 587
+    senderEmail := "f3243329@gmail.com"
+    senderPassword := "auca xxpm lziz vrjg"
+    m := gomail.NewMessage()
+    m.SetHeader("From", senderEmail)
+    m.SetHeader("To", to)
+    m.SetHeader("Subject", subject)
+    m.SetBody("text/plain", body)
+    d := gomail.NewDialer(smtpHost, smtpPort, senderEmail, senderPassword)
+    return d.DialAndSend(m)
+}
+
