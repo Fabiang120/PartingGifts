@@ -55,6 +55,7 @@ const LoginPage = () => {
             src="/PG-icon.png"
             alt="Parting Gifts Logo"
             className="mx-auto mb-4 w-24"
+            onClick={() => router.push("/")}
           />
           <h1 className="text-xl font-bold text-black">Welcome Back!</h1>
         </div>

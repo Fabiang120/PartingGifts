@@ -118,6 +118,7 @@ export default function RegisterPage() {
               src="/PG-icon.png"
               alt="Parting Gifts Logo"
               className="mx-auto mb-4 w-24"
+              onClick={() => router.push("/")}
             />
             <h1 className="text-xl font-bold text-black">Create an account!</h1>
           </div>

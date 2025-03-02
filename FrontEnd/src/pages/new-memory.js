@@ -82,6 +82,7 @@ const NewMemory = () => {
           src="https://i.postimg.cc/VsRBMLgn/pglogo.png"
           alt="Parting Gifts Logo"
           className="w-36"
+          onClick={() => router.push("/dashboard")}
         />
       </header>
 
@@ -89,8 +90,25 @@ const NewMemory = () => {
         <h1 className="text-xl font-bold text-black">Create a new memory!</h1>
         <p className="text-sm text-gray-600 mb-8">Record or upload a memory that will last forever.</p>
 
+        <div className="w-full md:w-1/2 flex flex-row space-x-4 items-center">
         <div
-          className="flex flex-col items-center border-2 border-dashed border-gray-400 rounded-lg p-6 w-full md:w-1/2 bg-gray-50 cursor-pointer"
+          className="flex flex-col items-center border-2 border-green-600 rounded-lg p-2 w-full bg-gray-50 cursor-pointer"
+          onClick={() => router.push('/record-memory')}
+        >
+        <img
+          src="https://cdn-icons-png.flaticon.com/128/711/711245.png"
+          alt="Parting Gifts Logo"
+          className="w-8"
+        />
+        <label htmlFor="record" className="text-green-800 underline cursor-pointer">
+            Record a Video
+          </label>
+        </div>
+
+        <p className="text-black">Or</p>
+
+        <div
+          className="flex flex-col items-center border-2 border-dashed border-gray-400 rounded-lg p-6 w-full bg-gray-50 cursor-pointer"
           onDragOver={handleDragOver}
           onDrop={handleDrop}
         >
@@ -100,9 +118,10 @@ const NewMemory = () => {
             className="hidden"
             id="fileInput"
           />
-          <label htmlFor="fileInput" className="text-blue-500 underline cursor-pointer">
-            Drag & Drop a file or Click to Select
+          <label htmlFor="fileInput" className="text-blue-500 underline cursor-pointer text-center">
+            Drag or Click to Upload
           </label>
+        </div>
         </div>
 
         <div className="mt-4 w-full md:w-1/2">

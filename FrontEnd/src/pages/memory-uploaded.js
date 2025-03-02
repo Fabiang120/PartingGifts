@@ -66,6 +66,7 @@ const MemoryUploaded = () => {
           src="https://i.postimg.cc/VsRBMLgn/pglogo.png"
           alt="Parting Gifts Logo"
           className="w-36"
+          onClick={() => router.push("/dashboard")}
         />
       </header>
 
