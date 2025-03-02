@@ -52,7 +52,7 @@ const MemoryUploaded = () => {
   };
 
   return (
-    <div className="min-h-screen bg-blue-100 flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-blue-100 flex flex-col items-center">
       {/* Header Section */}
       <header className="flex items-center justify-between w-full px-8 py-4 bg-white shadow-md">
         <img
@@ -94,7 +94,7 @@ const MemoryUploaded = () => {
                 name="name"
                 value={receiverInfo.name}
                 onChange={handleInputChange}
-                className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                className="p-2 border border-gray-300 rounded-lg focus:outline-none text-black focus:ring-2 focus:ring-blue-300"
               />
             </div>
             <div className="flex flex-col">
@@ -107,7 +107,7 @@ const MemoryUploaded = () => {
                 name="email"
                 value={receiverInfo.email}
                 onChange={handleInputChange}
-                className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                className="p-2 border border-gray-300 rounded-lg focus:outline-none text-black focus:ring-2 focus:ring-blue-300"
               />
             </div>
             <div className="flex flex-col">
@@ -120,7 +120,7 @@ const MemoryUploaded = () => {
                 name="phone"
                 value={receiverInfo.phone}
                 onChange={handleInputChange}
-                className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                className="p-2 border border-gray-300 rounded-lg focus:outline-none text-black focus:ring-2 focus:ring-blue-300"
               />
             </div>
             <div className="flex flex-col">

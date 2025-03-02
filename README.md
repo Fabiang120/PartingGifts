@@ -13,3 +13,8 @@ Group Members
 - **Backend:**  
   - Fabian Gracia  
   - Sahil Dhanani  
+
+Videos for Sprint 1
+Frontend:  https://youtu.be/VSiEAaJwyt8?si=d7buibnv_5SefMQW
+Backend:  https://youtu.be/drErqTQn3XM
+

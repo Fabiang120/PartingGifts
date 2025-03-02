@@ -11,7 +11,7 @@ export default function Home() {
       </h1>
 
       {/* Content Container */}
-      <div className="mt-8 flex items-center max-w-4xl mx-auto">
+      <div className="mt-8 flex items-center max-w-4xl mx-auto space-x-4">
         {/* Left Section - Text */}
         <div className="bg-blue-100 p-6 rounded-lg w-1/2">
           <p className="text-lg text-gray-700">
@@ -26,7 +26,7 @@ export default function Home() {
 
         {/* Right Section - Image */}
         <div className="w-1/2 flex justify-center">
-          <Image src="/indeximg1.jpg" alt="Friends smiling" width={400} height={300} className="rounded-lg shadow-lg" />
+          <Image src="/indeximg1.jpg" alt="Friends smiling" width={450} height={300} className="rounded-lg shadow-lg" />
         </div>
       </div>
 

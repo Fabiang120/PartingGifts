@@ -9,6 +9,7 @@ const Dashboard = () => {
   const [giftCount, setGiftCount] = useState(0);
   const [gifts, setGifts] = useState([]);
   const [selectedGift, setSelectedGift] = useState(null);
+  const [pendingMessages, setPendingMessages] = useState(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -16,7 +17,6 @@ const Dashboard = () => {
       console.log("Retrieved username:", storedUsername);
       if (storedUsername) {
         setUsername(storedUsername);
-        // Fetch the gift count.
         fetch(`http://localhost:8080/gift-count?username=${storedUsername}`)
           .then((res) => res.json())
           .then((data) => {
@@ -27,7 +27,6 @@ const Dashboard = () => {
             console.error("Error fetching gift count:", error);
             setGiftCount(0);
           });
-        // Fetch the gifts for this user.
         fetch(`http://localhost:8080/gifts?username=${storedUsername}`)
           .then((res) => res.json())
           .then((data) => {
@@ -47,6 +46,28 @@ const Dashboard = () => {
           .catch((error) =>
             console.error("Error fetching receiver emails:", error)
           );
+        // Fetch Pending Messages Count.
+        fetch("http://localhost:8080/dashboard/pending-gifts")
+          .then((res) => res.json())
+          .then((data) => {
+            console.log("Pending messages data:", data);
+            setPendingMessages(data.pending_messages || 0);
+          })
+          .catch((error) => {
+            console.error("Error fetching pending messages:", error);
+            setPendingMessages(0);
+          });
+      }
+      // Also check sessionStorage for receiverEmails (fallback).
+      const storedEmails = sessionStorage.getItem("receiverEmails");
+      if (storedEmails) {
+        try {
+          const parsedEmails = JSON.parse(storedEmails);
+          setReceiverEmails(parsedEmails);
+        } catch (error) {
+          const emails = storedEmails.split(",");
+          setReceiverEmails(emails.map((email) => email.trim()));
+        }
       }
     }
   }, []);
@@ -90,11 +111,15 @@ const Dashboard = () => {
           <h1 className="text-xl font-bold text-black">
             Hello {username || "[user]"}!
           </h1>
-          <p className="text-red-500">You have n unsent messages</p>
-          <p className="mt-2 text-black">
-            Total messages created: {giftCount}
+          <p className="text-red-500">
+            You have{" "}
+            {pendingMessages !== null ? pendingMessages : "Loading..."} unsent messages
           </p>
-          <p className="text-black">Pending messages to schedule: n</p>
+          <p className="mt-2 text-black">Total messages created: {giftCount}</p>
+          <p className="mt-2 text-black">
+            Pending messages to schedule:{" "}
+            {pendingMessages !== null ? pendingMessages : "Loading..."}
+          </p>
           <p className="mt-2 text-blue-500 hover:underline cursor-pointer">
             View Calendar
           </p>
@@ -145,21 +170,11 @@ const Dashboard = () => {
 
         {/* Receiver Emails Section */}
         <div className="p-6 bg-white rounded-lg shadow-md">
-          <h2 className="text-lg font-bold mb-4 text-black">
-            Receiver Emails
-          </h2>
+          <h2 className="text-lg font-bold mb-4 text-black">Receiver Emails</h2>
           {receiverEmails.length > 0 ? (
             <ul className="list-disc pl-5">
               {receiverEmails.map((email, index) => (
-                <li key={index} className="flex items-center text-black">
-                  {/* Person icon (inline SVG) */}
-                  <svg
-                    className="w-4 h-4 mr-2"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M10 10a5 5 0 100-10 5 5 0 000 10zM2 18a8 8 0 0116 0H2z" />
-                  </svg>
+                <li key={index} className="text-black">
                   {email}
                 </li>
               ))}
@@ -178,12 +193,14 @@ const Dashboard = () => {
             {selectedGift.file_name ? (
               <div>
                 {isImageFile(selectedGift.file_name) ? (
+                  // Display the image preview using the /download-gift route.
                   <img
                     src={`http://localhost:8080/download-gift?id=${selectedGift.id}`}
                     alt={selectedGift.file_name}
                     className="mb-4 max-h-96 object-contain"
                   />
                 ) : (
+                  // For non-image files, display a download link.
                   <a
                     href={`http://localhost:8080/download-gift?id=${selectedGift.id}`}
                     download={selectedGift.file_name}
