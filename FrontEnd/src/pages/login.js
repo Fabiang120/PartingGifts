@@ -26,6 +26,10 @@ const LoginPage = () => {
       const data = await response.json();
       console.log("Login response:", data);
 
+      if (data.error) {
+        throw data.error;
+      }
+
       // Store the username in sessionStorage.
       if (typeof window !== "undefined") {
         sessionStorage.setItem("username", username);
@@ -39,7 +43,7 @@ const LoginPage = () => {
       }
     } catch (err) {
       console.error("Login error:", err);
-      setError("You entered the wrong username and password");
+      setError("You entered the wrong username or password.");
     }
   };
 

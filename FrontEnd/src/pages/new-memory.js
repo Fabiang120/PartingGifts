@@ -9,23 +9,31 @@ const NewMemory = () => {
   const [username, setUsername] = useState("");
   const router = useRouter();
 
-  // Retrieve the username from sessionStorage on mount.
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedUsername = sessionStorage.getItem("username");
       if (storedUsername) {
-        console.log("Retrieved username from sessionStorage:", storedUsername);
         setUsername(storedUsername);
-      } else {
-        console.log("No username in sessionStorage");
       }
     }
   }, []);
 
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    setSelectedFile(file);
-    setMessage(`File selected: ${file.name}`);
+  const handleFileChange = (file) => {
+    if (file) {
+      setSelectedFile(file);
+      setMessage(`File selected: ${file.name}`);
+    }
+  };
+
+  const handleDragOver = (event) => {
+    event.preventDefault();
+  };
+
+  const handleDrop = (event) => {
+    event.preventDefault();
+    if (event.dataTransfer.files.length > 0) {
+      handleFileChange(event.dataTransfer.files[0]);
+    }
   };
 
   const handleUpload = async () => {
@@ -58,9 +66,7 @@ const NewMemory = () => {
       const responseData = await response.json();
       setMessage(responseData.message);
 
-      // Store gift ID in session storage
       sessionStorage.setItem("currentGiftId", responseData.giftId);
-      console.log("Stored gift ID:", responseData.giftId);
 
       router.push("/memory-uploaded");
     } catch (err) {
@@ -71,7 +77,6 @@ const NewMemory = () => {
 
   return (
     <div className="min-h-screen bg-blue-100 flex flex-col items-center">
-      {/* Header Section */}
       <header className="flex items-center justify-between w-full px-8 py-4 bg-white shadow-md">
         <img
           src="https://i.postimg.cc/VsRBMLgn/pglogo.png"
@@ -80,51 +85,48 @@ const NewMemory = () => {
         />
       </header>
 
-      {/* Main Content */}
       <main className="flex flex-col items-center w-full max-w-5xl p-8 bg-white rounded-lg shadow-md mt-8">
         <h1 className="text-xl font-bold text-black">Create a new memory!</h1>
-        <p className="text-sm text-gray-600 mb-8">
-          Record or upload a memory that will last forever.
-        </p>
+        <p className="text-sm text-gray-600 mb-8">Record or upload a memory that will last forever.</p>
 
-        {/* File Upload Section */}
         <div
           className="flex flex-col items-center border-2 border-dashed border-gray-400 rounded-lg p-6 w-full md:w-1/2 bg-gray-50 cursor-pointer"
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
         >
-          <input type="file" onChange={handleFileChange} className="hidden" id="fileInput" />
+          <input
+            type="file"
+            onChange={(e) => handleFileChange(e.target.files[0])}
+            className="hidden"
+            id="fileInput"
+          />
           <label htmlFor="fileInput" className="text-blue-500 underline cursor-pointer">
-            Select a file
+            Drag & Drop a file or Click to Select
           </label>
         </div>
 
-        {/* Custom Message Input */}
         <div className="mt-4 w-full md:w-1/2">
-          <label htmlFor="emailMessage" className="text-sm text-gray-700">
-            Custom Email Message (optional)
-          </label>
+          <label htmlFor="emailMessage" className="text-sm text-gray-700">Custom Email Message (optional)</label>
           <textarea
             id="emailMessage"
             value={customMessage}
             onChange={(e) => setCustomMessage(e.target.value)}
             rows="3"
-            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring focus:ring-blue-300"
+            className="w-full text-black p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring focus:ring-blue-300"
             placeholder="Enter a custom message for the email (optional)"
           />
         </div>
-        {/*Schedule option*/}
+
         <div className="mt-4 w-full md:w-1/2">
-          <label htmlFor="scheduleTime" className="text-sm text-gray-700">
-            Schedule Time(Optional)
-          </label>
+          <label htmlFor="scheduleTime" className="text-sm text-gray-700">Schedule Time (Optional)</label>
           <input
-          type="datetime-local"
-          id="scheduleTime"
-          value={scheduledTime}
-          onChange={(e) => setScheduledTime(e.target.value)}
-          className="w-full p-2 border-gray-300 rounded-lg focus:outline-none focus:ring focus:ring-blue-300"
+            type="datetime-local"
+            id="scheduleTime"
+            value={scheduledTime}
+            onChange={(e) => setScheduledTime(e.target.value)}
+            className="w-full text-black p-2 border-gray-300 rounded-lg focus:outline-none focus:ring focus:ring-blue-300"
           />
         </div>
-
 
         {message && <p className="mt-4 text-sm text-green-600">{message}</p>}
         <button

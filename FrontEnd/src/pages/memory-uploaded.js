@@ -59,7 +59,7 @@ const MemoryUploaded = () => {
   };
 
   return (
-    <div className="min-h-screen bg-blue-100 flex flex-col items-center">
+    <div className="min-h-screen text-black bg-blue-100 flex flex-col items-center">
       {/* Header Section */}
       <header className="flex items-center justify-between w-full px-8 py-4 bg-white shadow-md">
         <img
