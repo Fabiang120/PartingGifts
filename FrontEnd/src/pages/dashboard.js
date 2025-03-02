@@ -9,6 +9,8 @@ const Dashboard = () => {
   const [giftCount, setGiftCount] = useState(0);
   const [gifts, setGifts] = useState([]);
   const [selectedGift, setSelectedGift] = useState(null);
+  const [pendingMessages, setPendingMessages] = useState(null);
+
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -33,6 +35,17 @@ const Dashboard = () => {
             setGifts(data);
           })
           .catch((error) => console.error("Error fetching gifts:", error));
+          // Fetch Pending Messages Count
+        fetch("http://localhost:8080/dashboard/pending-gifts")
+        .then((res) => res.json())
+        .then((data) => {
+          console.log("Pending messages data:", data);
+          setPendingMessages(data.pending_messages || 0);
+        })
+        .catch((error) => {
+          console.error("Error fetching pending messages:", error);
+          setPendingMessages(0);
+        });
       }
       const storedEmails = sessionStorage.getItem("receiverEmails");
       if (storedEmails) {
@@ -86,11 +99,15 @@ const Dashboard = () => {
           <h1 className="text-xl font-bold text-black">
             Hello {username || "[user]"}!
           </h1>
-          <p className="text-red-500">You have n unsent messages</p>
+          <p className="text-red-500">
+            You have {pendingMessages !== null ? pendingMessages : "Loading..."} unsent messages
+           </p>
           <p className="mt-2 text-black">
             Total messages created: {giftCount}
           </p>
-          <p className="text-black">Pending messages to schedule: n</p>
+          <p className="mt-2  text-black">
+          Pending messages to schedule: {pendingMessages !== null ? pendingMessages : "Loading..."}
+          </p>
           <p className="mt-2 text-blue-500 hover:underline cursor-pointer">
             View Calendar
           </p>
