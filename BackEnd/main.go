@@ -292,6 +292,10 @@ func downloadGiftHandler(w http.ResponseWriter, r *http.Request) {
 		contentType = "image/png"
 	case strings.HasSuffix(lowerName, ".gif"):
 		contentType = "image/gif"
+	case strings.HasSuffix(lowerName, ".pdf"):
+		contentType = "application/pdf"
+	case strings.HasSuffix(lowerName, ".txt"):
+		contentType = "text/plain"
 	}
 
 	// Log successful retrieval
@@ -912,7 +916,6 @@ func GetReceiverHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(uniqueReceivers)
 }
-
 
 func scheduleInactivityCheckHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
