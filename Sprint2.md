@@ -12,6 +12,59 @@ http://localhost:8080
 ## Sprint 2 Work Walkthrough 
 
 
+## Brief Overview
+We completed Issue #4 which was password reset functionality with an email. However, we needed to come up with some additional issues below as our previous user stories didnt cover everything. Below is almost everything we implemented this sprint 2.
+
+## Specific Issues Finished 
+
+Implement a backend for showing receivers and saving receiver emails somewhere in the dashboard possibly.
+Make gifts show up from the backend on the dashboard.
+Set up session storage for username tracking.
+Complete password reset functionality with secure token validation (Issue #4)
+Add missing backend implementation to dashboard to show total gifts created.
+System to track how long a user has been inactive and then send preset messages to primary contact email.
+Add missing backend implementation to dashboard to show total gifts created.
+Complete Password Reset UI with email and security question options (Issue #4)
+Display receivers of gifts somewhere.
+Ensure gifts pop up on dashboard of the user.
+Add missing backend implementation to dashboard to show total pending gifts created.
+Add a way for users to stop pending gifts from being sent.
+
+
+## Issues Completed descriptions 
+
+1. Dashboard Enhancements
+Receivers & Emails: We built a backend feature that grabs and displays receiver info and saves their emails in a dedicated spot for easy review.
+Gifts Display: The dashboard now shows both created and pending gifts, giving users a clear view of their gift activity.
+Gift Totals: Added backend support to display the total number of gifts (both created and pending (needs some improvement)).
+Cancel Pending Gifts: Introduced a way for users to cancel any pending gifts for better control (needs slight improvements)
+
+2. User Authentication and Session Management
+Username Tracking: Set up session storage to remember usernames, making the overall user experience smoother.
+
+3. Password Reset Functionality
+Enhanced Reset UI: Upgraded the password reset interface to include an email for a temp password.
+Password change : Made sure that the backend makes the user make a new password after logging in with the temp password sent from the reset email.
+
+
+4. User Inactivity Management
+Inactivity Alerts: Developed a system that tracks user inactivity and automatically sends preset messages to the primary contact email.
+
+## Issues Not Finished
+Some of these issues not finished were set up in sprint 1 and others were created in sprint 2.
+
+## Specific Issues Not Finished
+Implement UI for privacy settings (Issue #7)
+Enhance farewell message recording UI (Issue #5)
+Implement message notification UI (Issue #9)
+Implement private messaging UI (Issue #10)
+Develop a way to set up files / record from our site.
+Make users have their own email
+
+## Why Not Finished
+We had some trouble getting the entire team to communicate and as a result some issues were left unattended to.
+
+
 
 ## Endpoints
 
