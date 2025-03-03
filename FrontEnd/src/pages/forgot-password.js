@@ -3,6 +3,8 @@ import { useRouter } from "next/router";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
+  const [securityAnswer, setSecurityAnswer] = useState("");
+  const [selectedMethod, setSelectedMethod] = useState("email");
   const [message, setMessage] = useState("");
   const router = useRouter();
 
@@ -16,31 +18,34 @@ const ForgotPassword = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:8080/reset-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email }),
-      });
+      let response;
+      if (selectedMethod === "email") {
+        response = await fetch("http://localhost:8080/reset-password", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email }),
+        });
+      } else {
+        response = await fetch("http://localhost:8080/reset-password-security", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, securityAnswer }),
+        });
+      }
 
       const data = await response.text();
       if (response.ok) {
         setMessage(data);
       } else {
-        setMessage(data || "Failed to send email.");
+        setMessage(data || "Failed to reset password.");
       }
     } catch (error) {
       setMessage("Something went wrong. Please try again later.");
     }
-  };
-
-  const handleLoginLink = () => {
-    if (!email) {
-      setMessage("Please enter your email address.");
-      return;
-    }
-    setMessage("If this email exists in our system, a login link has been sent.");
   };
 
   return (
@@ -50,15 +55,35 @@ const ForgotPassword = () => {
           <img
             src="https://i.postimg.cc/VsRBMLgn/pglogo.png"
             alt="Parting Gifts Logo"
-            className="mx-auto mb-4 w-24"
+            className="mx-auto mb-4 w-24 cursor-pointer"
             onClick={() => router.push("/")}
           />
           <h1 className="text-xl font-bold text-black">Forgot Password</h1>
         </div>
         <form onSubmit={handleResetPassword}>
           <p className="mb-4 text-sm text-gray-700">
-            Enter the email address you use on Parting Gifts. We’ll generate a new password for you and send it to your email.
+            Choose a method to reset your password.
           </p>
+          <div className="flex mb-4 space-x-4">
+            <button
+              type="button"
+              className={`w-1/2 px-4 py-2 rounded-md focus:outline-none focus:ring ${
+                selectedMethod === "email" ? "bg-blue-500 text-white" : "bg-gray-200"
+              }`}
+              onClick={() => setSelectedMethod("email")}
+            >
+              Email Reset
+            </button>
+            <button
+              type="button"
+              className={`w-1/2 px-4 py-2 rounded-md focus:outline-none focus:ring ${
+                selectedMethod === "security" ? "bg-blue-500 text-white" : "bg-gray-200"
+              }`}
+              onClick={() => setSelectedMethod("security")}
+            >
+              Security Question
+            </button>
+          </div>
           <div className="flex flex-col mb-4">
             <label htmlFor="email" className="text-sm font-medium text-black">
               Email
@@ -73,6 +98,22 @@ const ForgotPassword = () => {
               required
             />
           </div>
+          {selectedMethod === "security" && (
+            <div className="flex flex-col mb-4">
+              <label htmlFor="securityAnswer" className="text-sm font-medium text-black">
+                Security Answer
+              </label>
+              <input
+                type="text"
+                id="securityAnswer"
+                value={securityAnswer}
+                onChange={(e) => setSecurityAnswer(e.target.value)}
+                placeholder="Enter your answer"
+                className="border-gray-600 border rounded-lg p-2 mt-1 focus:outline-none focus:ring focus:ring-blue-300"
+                required
+              />
+            </div>
+          )}
           <button
             type="submit"
             className="w-full px-4 py-2 mb-4 text-white bg-blue-500 rounded-md hover:bg-blue-600 focus:outline-none focus:ring focus:ring-blue-300"
@@ -80,17 +121,6 @@ const ForgotPassword = () => {
             Reset Password
           </button>
         </form>
-        <div className="flex items-center justify-center mb-4 text-gray-400">
-          <hr className="w-full border-gray-300" />
-          <span className="px-2 text-sm">or</span>
-          <hr className="w-full border-gray-300" />
-        </div>
-        <button
-          onClick={handleLoginLink}
-          className="w-full px-4 py-2 mb-4 text-blue-500 border border-blue-500 rounded-md hover:bg-blue-100 focus:outline-none focus:ring focus:ring-blue-300"
-        >
-          Email me a login link
-        </button>
         <div className="text-center">
           <a
             onClick={() => router.push("/login")}
@@ -99,9 +129,7 @@ const ForgotPassword = () => {
             Back to Log in
           </a>
         </div>
-        {message && (
-          <p className="mt-4 text-sm text-center text-green-600">{message}</p>
-        )}
+        {message && <p className="mt-4 text-sm text-center text-green-600">{message}</p>}
       </div>
     </div>
   );
