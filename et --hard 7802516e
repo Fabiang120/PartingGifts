@@ -1,0 +1,38 @@
+[33m23a6f844[m[33m ([m[1;36mHEAD -> [m[1;32mFabian-Branch[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: pull origin main: Fast-forward
+[33m7802516e[m[33m ([m[1;31morigin/Fabian-Branch[m[33m)[m HEAD@{1}: commit: Fixed null receiver glitch
+[33me640f983[m HEAD@{2}: pull origin main: Fast-forward
+[33m61ea7f47[m HEAD@{3}: commit: Fixed receiver code to read from gift table
+[33m5bb3040b[m HEAD@{4}: pull origin main: Fast-forward
+[33m47fea060[m HEAD@{5}: commit: Fixed dashboard error and added inactivity email logic
+[33mf54264f9[m HEAD@{6}: commit (merge): combined pending gifts with receiver emails fix
+[33me3b62a48[m HEAD@{7}: checkout: moving from main to Fabian-Branch
+[33md7e57175[m[33m ([m[1;32mmain[m[33m)[m HEAD@{8}: pull origin main: Fast-forward
+[33md60db1f0[m HEAD@{9}: checkout: moving from d7e57175cb059537956a85af0b59c0f782fb85d2 to main
+[33md7e57175[m[33m ([m[1;32mmain[m[33m)[m HEAD@{10}: pull --rebase origin main (start): checkout d7e57175cb059537956a85af0b59c0f782fb85d2
+[33me3b62a48[m HEAD@{11}: reset: moving to HEAD
+[33me3b62a48[m HEAD@{12}: reset: moving to HEAD
+[33me3b62a48[m HEAD@{13}: commit: Fixed receiver emails not showing up on dashboard
+[33m1c76ab86[m HEAD@{14}: commit: Added Gifts to dashboard and added how many gifts user has sent
+[33mbe3a086c[m HEAD@{15}: commit: Added Total messages created and receiver emails logic to dashboard
+[33mf945da7e[m HEAD@{16}: commit: Added session storage, set up receivers in database and changed send email functionality
+[33m90cf0ceb[m HEAD@{17}: commit: Finished all Reset password logic
+[33m12bd5afa[m HEAD@{18}: commit: Reset Password Emailing Works
+[33me052991f[m HEAD@{19}: commit: Fixed entire backend, rn when you press upload memory it sends it, (only works with primary and seconday)
+[33m48e8ad6e[m HEAD@{20}: pull origin main: Fast-forward
+[33m0bdaa61f[m HEAD@{21}: commit: Added secondary / primary emails
+[33m816a4ed3[m HEAD@{22}: commit: Added some readme info for gomail, added text for emails, added comments for backend
+[33m4db9fef8[m HEAD@{23}: commit: Added GoMail and new SendGiftByEmail route
+[33m50af4cad[m HEAD@{24}: commit: Added Login Logic
+[33mb086ae4b[m HEAD@{25}: commit: Added Forgot Password logic
+[33mbc2139c8[m HEAD@{26}: pull origin Fabian-Branch: Fast-forward
+[33mb96be78a[m HEAD@{27}: commit: Added Gift page and making the database save the gift files
+[33m73f5ba2d[m HEAD@{28}: commit: Set up Email screen to start creating the email sequence
+[33md4d5dd84[m HEAD@{29}: commit (amend): Added Login screen and a test transition page
+[33m29b51d96[m HEAD@{30}: commit: Added Angular Front end
+[33m556de417[m HEAD@{31}: commit: Added Angular Front end
+[33mb4bcc335[m HEAD@{32}: checkout: moving from Fabian-Branch to Fabian-Branch
+[33mb4bcc335[m HEAD@{33}: pull origin Fabian-Branch: Merge made by the 'ort' strategy.
+[33med0001a7[m HEAD@{34}: commit: Set up sqite and go
+[33md60db1f0[m HEAD@{35}: checkout: moving from Fabian-branch to Fabian-Branch
+[33md60db1f0[m HEAD@{36}: checkout: moving from main to Fabian-branch
+[33md60db1f0[m HEAD@{37}: clone: from https://github.com/Fabiang120/PartingGifts.git
