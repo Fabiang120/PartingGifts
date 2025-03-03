@@ -43,6 +43,7 @@ const Dashboard = () => {
           });
 
         // Fetch receiver emails
+        // Fetch receiver emails
         fetch(`http://localhost:8080/get-receivers?username=${storedUsername}`)
           .then((res) => res.json())
           .then((data) => {

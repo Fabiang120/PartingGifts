@@ -856,6 +856,7 @@ func GetReceiverHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request method"})
 		return
 	}
+	// Get username from query parameters.
 	username := r.URL.Query().Get("username")
 	if username == "" {
 		w.Header().Set("Content-Type", "application/json")
@@ -863,24 +864,55 @@ func GetReceiverHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Username is required"})
 		return
 	}
-	var receivers string
-	err := db.QueryRow("SELECT receivers FROM users WHERE username = ?", username).Scan(&receivers)
+
+	// First, retrieve the user ID based on the username.
+	var userID int
+	err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]string{"error": "User not found"})
 		return
 	}
-	var emails []string
-	if receivers != "" {
-		emails = strings.Split(receivers, ",")
-		for i, email := range emails {
-			emails[i] = strings.TrimSpace(email)
+
+	// Now query the gifts table for all receivers linked to this user.
+	rows, err := db.Query("SELECT receivers FROM gifts WHERE user_id = ? AND receivers IS NOT NULL AND receivers <> ''", userID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Error retrieving receivers"})
+		return
+	}
+	defer rows.Close()
+
+	// Use a set to collect unique receiver email addresses.
+	receiverSet := make(map[string]bool)
+	for rows.Next() {
+		var receivers string
+		if err := rows.Scan(&receivers); err != nil {
+			continue
+		}
+		if receivers != "" {
+			// Split comma-separated list and add each trimmed email to the set.
+			parts := strings.Split(receivers, ",")
+			for _, part := range parts {
+				trimmed := strings.TrimSpace(part)
+				if trimmed != "" {
+					receiverSet[trimmed] = true
+				}
+			}
 		}
 	}
+	// Convert the set into a slice.
+	var uniqueReceivers []string
+	for rec := range receiverSet {
+		uniqueReceivers = append(uniqueReceivers, rec)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(emails)
+	json.NewEncoder(w).Encode(uniqueReceivers)
 }
+
 
 func scheduleInactivityCheckHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
