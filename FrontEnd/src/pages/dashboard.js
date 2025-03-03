@@ -42,10 +42,15 @@ const Dashboard = () => {
             setGifts([]);
           });
 
-        // Fetch receiver emails
+        // Fetch receiver emails with a null check
         fetch(`http://localhost:8080/get-receivers?username=${storedUsername}`)
           .then((res) => res.json())
           .then((data) => {
+            if (!data) {
+              console.error("No data received from get-receivers");
+              setReceiverEmails([]);
+              return;
+            }
             if (data.error) {
               console.error("Error from get-receivers:", data.error);
               setReceiverEmails([]);
@@ -88,36 +93,31 @@ const Dashboard = () => {
 
   const stopPendingGift = async (giftId) => {
     console.log("Received gift ID:", giftId);
-  
+
     if (!giftId || isNaN(giftId)) {
       alert("Invalid gift ID. Please try again.");
       return;
     }
-  
+
     try {
       const response = await fetch(`http://localhost:8080/stop-pending-gift?id=${giftId}`, {
         method: "DELETE",
       });
-  
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to stop gift: ${errorText}`);
       }
-  
+
       alert("Pending gift has been stopped successfully!");
-  
+
       // Update UI: Remove the canceled gift from the pending list
       setGifts((prevGifts) => prevGifts.filter((gift) => gift.id !== giftId));
-  
     } catch (error) {
       console.error("Error stopping pending gift:", error);
       alert("Error stopping gift. Please try again.");
     }
   };
-  
-
-
-  
 
   // Navigation handlers
   const handleNewMemoryClick = () => {
@@ -200,7 +200,7 @@ const Dashboard = () => {
                     <p className="text-lg font-semibold text-black">
                       {gift.file_name || "Message Gift"}
                     </p>
-                    
+
                     {/* Debugging Log */}
                     {console.log("Gift ID in frontend:", gift.id, "Full Object:", gift)}
 
@@ -249,7 +249,6 @@ const Dashboard = () => {
             ))}
           </div>
         </div>
-
 
         {/* Receiver Emails Section */}
         <div className="p-6 bg-white rounded-lg shadow-md">
