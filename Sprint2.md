@@ -255,7 +255,3 @@ POST /schedule-check
 - CORS enabled for cross-origin requests.
 - Email notifications for password resets and gift delivery.
 
-## Future Improvements
-- Implement JWT-based authentication.
-- Add user roles and permissions.
-- Enhance email scheduling mechanisms.
