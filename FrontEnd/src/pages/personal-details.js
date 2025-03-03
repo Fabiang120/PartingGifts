@@ -3,14 +3,14 @@ import { useRouter } from "next/router";
 
 export default function PersonalDetails() {
   const [details, setDetails] = useState({
-    username: '',
-    primaryContact: '',
-    secondaryContacts: ['']
+    username: "",
+    primaryContact: "",
+    secondaryContacts: [""],
   });
   const [userEmailDetails, setUserEmailDetails] = useState(null);
   const [errors, setErrors] = useState({});
-  const [message, setMessage] = useState('');
-  const router = useRouter();
+  const [message, setMessage] = useState("");
+  const router = useRouter(); // ✅ Router for navigation
 
   // Retrieve the username from sessionStorage on mount.
   useEffect(() => {
@@ -18,7 +18,7 @@ export default function PersonalDetails() {
       const storedUsername = sessionStorage.getItem("username");
       if (storedUsername) {
         console.log("Retrieved username from sessionStorage:", storedUsername);
-        setDetails(prev => ({ ...prev, username: storedUsername }));
+        setDetails((prev) => ({ ...prev, username: storedUsername }));
       } else {
         console.log("No username in sessionStorage");
       }
@@ -39,20 +39,15 @@ export default function PersonalDetails() {
           const data = await response.json();
           console.log("Fetched user details:", data);
           setUserEmailDetails(data);
-          // Prepopulate the form fields if data exists.
           if (data.primary_contact_email) {
-            setDetails(prev => ({ ...prev, primaryContact: data.primary_contact_email }));
-          } else {
-            console.log("No primary_contact_email found for user.");
+            setDetails((prev) => ({ ...prev, primaryContact: data.primary_contact_email }));
           }
           if (data.secondary_contact_emails) {
-            const contacts = data.secondary_contact_emails.split(',');
-            setDetails(prev => ({
+            const contacts = data.secondary_contact_emails.split(",");
+            setDetails((prev) => ({
               ...prev,
-              secondaryContacts: contacts
+              secondaryContacts: contacts,
             }));
-          } else {
-            console.log("No secondary_contact_emails found for user.");
           }
         } else {
           console.error("Failed to fetch user details, status:", response.status);
@@ -64,27 +59,10 @@ export default function PersonalDetails() {
     fetchEmailDetails();
   }, [details.username]);
 
-  // Simple validation (expand as needed)
-  const validate = () => {
-    const newErrors = {};
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleContactChange = (index, newValue) => {
-    const updatedContacts = [...details.secondaryContacts];
-    updatedContacts[index] = newValue;
-    setDetails({ ...details, secondaryContacts: updatedContacts });
-  };
-
-  const addNewContact = () => {
-    setDetails({ ...details, secondaryContacts: [...details.secondaryContacts, ""] });
-  };
-
-  const removeContact = (index) => {
-    if (details.secondaryContacts.length === 1) return;
-    const updatedContacts = details.secondaryContacts.filter((_, i) => i !== index);
-    setDetails({ ...details, secondaryContacts: updatedContacts });
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setMessage("");
+    updatePersonalDetails();
   };
 
   const updatePersonalDetails = async () => {
@@ -93,12 +71,12 @@ export default function PersonalDetails() {
       const payload = {
         username: details.username,
         primaryContactEmail: details.primaryContact,
-        contactEmail: details.secondaryContacts.join(',')
+        contactEmail: details.secondaryContacts.join(","),
       };
 
-      const response = await fetch('http://localhost:8080/update-emails', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("http://localhost:8080/update-emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
@@ -115,14 +93,6 @@ export default function PersonalDetails() {
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setMessage('');
-    if (validate()) {
-      updatePersonalDetails();
-    }
-  };
-
   return (
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 bg-blue-100">
       <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
@@ -131,13 +101,9 @@ export default function PersonalDetails() {
           <p className="font-bold text-2xl">Personal Details</p>
 
           {userEmailDetails && userEmailDetails.username ? (
-            <div className="bg-gray-100 p-2 mb-2">
-              Current Username: {userEmailDetails.username}
-            </div>
+            <div className="bg-gray-100 p-2 mb-2">Current Username: {userEmailDetails.username}</div>
           ) : (
-            <div className="bg-red-100 p-2 mb-2">
-              Username not found in fetched data.
-            </div>
+            <div className="bg-red-100 p-2 mb-2">Username not found in fetched data.</div>
           )}
 
           <div className="flex flex-col">
@@ -155,13 +121,9 @@ export default function PersonalDetails() {
 
           <div className="flex flex-col">
             {userEmailDetails && userEmailDetails.primary_contact_email ? (
-              <div className="bg-gray-100 p-2 mb-2">
-                Current Primary Email: {userEmailDetails.primary_contact_email}
-              </div>
+              <div className="bg-gray-100 p-2 mb-2">Current Primary Email: {userEmailDetails.primary_contact_email}</div>
             ) : (
-              <div className="bg-red-100 p-2 mb-2">
-                No primary email found.
-              </div>
+              <div className="bg-red-100 p-2 mb-2">No primary email found.</div>
             )}
             <label htmlFor="primaryContact">Primary Email</label>
             <input
@@ -175,55 +137,19 @@ export default function PersonalDetails() {
             {errors.primaryContact && <div className="text-red-500">{errors.primaryContact}</div>}
           </div>
 
-          <div className="flex flex-col">
-            {userEmailDetails && userEmailDetails.secondary_contact_emails ? (
-              <div className="bg-gray-100 p-2 mb-2">
-                Current Secondary Emails: {userEmailDetails.secondary_contact_emails}
-              </div>
-            ) : (
-              <div className="bg-red-100 p-2 mb-2">
-                No secondary emails found.
-              </div>
-            )}
-            <div className="space-x-2">
-              <label htmlFor="secondaryContacts">Secondary Contact Emails</label>
-              <button
-                onClick={addNewContact}
-                type="button"
-                className="bg-blue-500 text-white px-2 py-1 rounded"
-              >
-                +
-              </button>
-            </div>
-            {details.secondaryContacts.map((contact, index) => (
-              <div key={index} className="mb-2 flex items-center">
-                <input
-                  type="text"
-                  value={contact}
-                  onChange={(e) => handleContactChange(index, e.target.value)}
-                  className="border-gray-600 border rounded-lg p-1 flex-1 mr-2"
-                />
-                {details.secondaryContacts.length > 1 ? (
-                  <button
-                    type="button"
-                    onClick={() => removeContact(index)}
-                    className="bg-red-500 text-white px-2 py-1 rounded"
-                  >
-                    -
-                  </button>
-                ) : (
-                  <div className="bg-gray-500 text-white px-2 py-1 rounded">-</div>
-                )}
-              </div>
-            ))}
-            {errors.secondaryContacts && <div className="text-red-500">{errors.secondaryContacts}</div>}
-          </div>
-
           <button className="bg-[#00A9C5] text-white rounded-full py-1 px-8" type="submit">
             Update
           </button>
           {message && <div className="text-red-500">{message}</div>}
         </form>
+
+        {/* ✅ Privacy Settings Button */}
+        <button
+          onClick={() => router.push("/privacy-settings")}
+          className="bg-gray-600 text-white px-4 py-2 rounded-lg mt-4 hover:bg-gray-800"
+        >
+          Go to Privacy Settings
+        </button>
       </main>
     </div>
   );
