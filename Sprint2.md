@@ -1,12 +1,17 @@
 # Backend API Documentation
 
 ## Overview
-This document provides a detailed explanation of the backend API endpoints for the application. The backend is built using Go and SQLite, handling user authentication, file uploads, and automated email notifications.
+This document provides a detailed explanation of the backend API endpoints for the application along with a walkthrough of the work for sprint2. The backend is built using Go and SQLite, handling user authentication, file uploads, and automated email notifications.
+
 
 ## Base URL
 ```
 http://localhost:8080
 ```
+
+## Sprint 2 Work Walkthrough 
+
+
 
 ## Endpoints
 
