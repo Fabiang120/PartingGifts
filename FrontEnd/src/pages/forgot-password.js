@@ -3,10 +3,19 @@ import { useRouter } from "next/router";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
-  const [securityAnswer, setSecurityAnswer] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("email");
+  const [securityAnswer, setSecurityAnswer] = useState("");
+  const [securityQuestion, setSecurityQuestion] = useState("What is your mother's maiden name?");
   const [message, setMessage] = useState("");
   const router = useRouter();
+
+  const securityQuestions = [
+    "What is your mother's maiden name?",
+    "What was the name of your first pet?",
+    "What is your favorite teacher’s name?",
+    "What was the make of your first car?",
+    "What city were you born in?"
+  ];
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
@@ -33,7 +42,7 @@ const ForgotPassword = () => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ email, securityAnswer }),
+          body: JSON.stringify({ email, securityQuestion, securityAnswer }),
         });
       }
 
@@ -99,20 +108,41 @@ const ForgotPassword = () => {
             />
           </div>
           {selectedMethod === "security" && (
-            <div className="flex flex-col mb-4">
-              <label htmlFor="securityAnswer" className="text-sm font-medium text-black">
-                Security Answer
-              </label>
-              <input
-                type="text"
-                id="securityAnswer"
-                value={securityAnswer}
-                onChange={(e) => setSecurityAnswer(e.target.value)}
-                placeholder="Enter your answer"
-                className="border-gray-600 border rounded-lg p-2 mt-1 focus:outline-none focus:ring focus:ring-blue-300"
-                required
-              />
-            </div>
+            <>
+              <div className="flex flex-col mb-4">
+                <label htmlFor="securityQuestion" className="text-sm font-medium text-black">
+                  Security Question
+                </label>
+                <select
+                  id="securityQuestion"
+                  value={securityQuestion}
+                  onChange={(e) => setSecurityQuestion(e.target.value)}
+                  className="border-gray-600 border rounded-lg p-2 mt-1 focus:outline-none focus:ring focus:ring-blue-300"
+                  required
+                >
+                  {securityQuestions.map((question, index) => (
+                    <option key={index} value={question}>
+                      {question}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col mb-4">
+                <label htmlFor="securityAnswer" className="text-sm font-medium text-black">
+                  Your Answer
+                </label>
+                <input
+                  type="text"
+                  id="securityAnswer"
+                  value={securityAnswer}
+                  onChange={(e) => setSecurityAnswer(e.target.value)}
+                  placeholder="Enter your answer"
+                  className="border-gray-600 border rounded-lg p-2 mt-1 focus:outline-none focus:ring focus:ring-blue-300"
+                  required
+                />
+              </div>
+            </>
           )}
           <button
             type="submit"
