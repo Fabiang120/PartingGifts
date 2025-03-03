@@ -43,7 +43,6 @@ const Dashboard = () => {
           });
 
         // Fetch receiver emails
-        // Fetch receiver emails
         fetch(`http://localhost:8080/get-receivers?username=${storedUsername}`)
           .then((res) => res.json())
           .then((data) => {
@@ -61,7 +60,7 @@ const Dashboard = () => {
           });
 
         // Fetch pending messages count
-        fetch("http://localhost:8080/dashboard/pending-gifts")
+        fetch(`http://localhost:8080/dashboard/pending-gifts?username=${storedUsername}`)
           .then((res) => res.json())
           .then((data) => {
             console.log("Pending messages data:", data);

@@ -232,13 +232,27 @@ func pendingGiftsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Query to count pending gifts (messages that haven't been sent)
+	// Extract the username from the query parameters
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		http.Error(w, "Username is required", http.StatusBadRequest)
+		return
+	}
+
+	// Retrieve the user ID from the users table
+	var userID int
+	err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// Query to count pending gifts **only for this user**
 	var pendingCount int
-	err := db.QueryRow(`
-        SELECT COUNT(*) FROM gifts g
-        LEFT JOIN users u ON g.user_id = u.id
-        WHERE u.receivers IS NULL OR u.receivers = '';
-    `).Scan(&pendingCount)
+	err = db.QueryRow(`
+        SELECT COUNT(*) FROM gifts 
+        WHERE user_id = ? AND (receivers IS NULL OR receivers = '');
+    `, userID).Scan(&pendingCount)
 
 	if err != nil {
 		log.Printf("Error retrieving pending messages count: %v", err)
