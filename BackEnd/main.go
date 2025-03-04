@@ -788,6 +788,15 @@ func setupReceiversHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Retrieve the custom message stored in the gift record.
+	var storedCustomMessage string
+	err = db.QueryRow("SELECT custom_message FROM gifts WHERE id = ?", req.GiftID).Scan(&storedCustomMessage)
+	if err != nil {
+		log.Printf("Error retrieving custom message for gift %d: %v", req.GiftID, err)
+		// Fallback to the request value if needed.
+		storedCustomMessage = req.CustomMessage
+	}
+
 	// Schedule the inactivity check and then sending the gift email.
 	go func() {
 		// Retrieve the primary email from the user record.
@@ -808,8 +817,8 @@ func setupReceiversHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Inactivity check email sent successfully to %s", primaryEmail)
 		// Wait an additional minute.
 		time.Sleep(1 * time.Minute)
-		// Finally, send the gift email to the receivers.
-		if err := sendGiftEmailToReceivers(fileName, fileData, req.CustomMessage, req.Receivers); err != nil {
+		// Finally, send the gift email to the receivers using the stored custom message.
+		if err := sendGiftEmailToReceivers(fileName, fileData, storedCustomMessage, req.Receivers); err != nil {
 			log.Printf("Error sending gift email: %v", err)
 		} else {
 			log.Printf("Gift email sent successfully to receivers for gift %d", req.GiftID)
@@ -820,6 +829,7 @@ func setupReceiversHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Receivers set up successfully. Inactivity check scheduled."))
 }
+
 
 func sendGiftEmailToReceivers(fileName string, fileData []byte, customMessage, receiversParam string) error {
 	// Parse the receivers from the comma-separated string.
