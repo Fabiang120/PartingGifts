@@ -64,6 +64,72 @@ Make users have their own email
 ## Why Not Finished
 We had some trouble getting the entire team to communicate and as a result some issues were left unattended to.
 
+## Backend Unit tests
+CreateAccountHandler:
+Tests the account creation process by validating that a new user is successfully created.
+
+PersonalDetailsHandler:
+Checks that user personal details (emails) are correctly updated.
+
+UploadGiftHandler:
+Verifies that gift files can be uploaded along with associated metadata like email messages.
+
+LoginHandler:
+Confirms that the login endpoint correctly validates user credentials.
+
+SetupReceiversHandler:
+Ensures that receivers can be set up for a gift by updating the corresponding record.
+
+GiftCountHandler:
+Tests that the correct gift count is returned for a given user.
+
+DownloadGiftHandler:
+Validates that a gift file can be successfully retrieved and matches the expected file content.
+
+StopPendingGiftHandler:
+Checks the deletion or cancellation process for a pending gift.
+
+sendGiftEmailToReceivers Function:
+Verifies that email notifications to gift receivers are sent without error.
+
+sendCheckEmail Function:
+Tests the functionality of sending a test (check) email.
+
+ChangePasswordHandler:
+Ensures that a user's password can be changed, updates the stored hash, and resets the force-password-change flag.
+
+## Frontend Unit Tests
+Dashboard Component:
+Displays the dashboard and shows user-specific information (e.g., greeting with username).
+
+ForceChange Component:
+Provides a form for changing passwords and handles error display when the passwords do not match.
+
+ForgotPassword Component:
+Manages the email input and reset password request, and shows an error message if the reset fails.
+
+LoginPage Component:
+Validates login credentials, handles error feedback for wrong username/password, and manages routing upon successful login.
+
+NewMemory Component:
+Handles file uploads for a new memory and verifies navigation or UI updates after the upload process.
+
+RegisterPage Component:
+Validates user input during registration and submits the registration form while handling potential errors.
+
+RecordMemory Component:
+Renders the recording interface for capturing a memory (including video elements) and ensures proper handling of recording functionalities.
+
+WriteMemory Component:
+Displays an editor for writing a memory, including a title input and action buttons like "Save Memory" and "Cancel."
+
+PersonalDetails Component:
+Renders a form for updating personal details, shows current username information, and includes navigation to privacy settings.
+
+MemoryUploaded Component:
+Renders a form for receiver information and triggers an alert when essential session data is missing.
+
+## Cypress Test
 
 
 ## Endpoints
