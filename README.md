@@ -18,3 +18,11 @@ Videos for Sprint 1
 Frontend:  https://youtu.be/VSiEAaJwyt8?si=d7buibnv_5SefMQW
 Backend:  https://youtu.be/drErqTQn3XM
 
+Videos for Sprint 2
+Video 1: https://www.youtube.com/watch?
+v=ZfgtXeQmehQ&ab_channel=Fabian
+
+Video 2: https://www.youtube.com/watch?
+v=s2nU40OTkeY&ab_channel=Fabian
+
+
