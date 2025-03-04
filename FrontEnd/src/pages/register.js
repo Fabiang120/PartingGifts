@@ -1,18 +1,6 @@
 import React from "react";
-import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
 import { useState } from "react";
 import { useRouter } from "next/router";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export default function RegisterPage() {
   // The form still collects firstName and lastName for display;
@@ -70,7 +58,7 @@ export default function RegisterPage() {
       // Create a payload matching your backend's expected fields:
       //   - username
       //   - password
-      //   - myEmail (mapped from our "email" field)
+      //   - primary_contact_email (mapped from our "email" field)
       const payload = {
         username: user.username,
         password: user.password,
@@ -109,9 +97,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div
-      className={`${geistSans.variable} ${geistMono.variable} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)] bg-blue-100`}
-    >
+    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 bg-blue-100">
       <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
         <form onSubmit={handleSubmit} className="p-10 text-black bg-white rounded-lg shadow-md space-y-6">
           <div className="text-center mb-6">
@@ -126,7 +112,9 @@ export default function RegisterPage() {
 
           <div className="flex flex-row space-x-8">
             <div className="flex flex-col flex-grow">
-              <label htmlFor="firstName" className="block text-sm font-medium text-black">First Name</label>
+              <label htmlFor="firstName" className="block text-sm font-medium text-black">
+                First Name
+              </label>
               <input
                 type="text"
                 id="firstName"
@@ -139,7 +127,9 @@ export default function RegisterPage() {
               {errors.firstName && <div className="text-red-500 text-sm">{errors.firstName}</div>}
             </div>
             <div className="flex flex-col flex-grow">
-              <label htmlFor="lastName" className="block text-sm font-medium text-black">Last Name</label>
+              <label htmlFor="lastName" className="block text-sm font-medium text-black">
+                Last Name
+              </label>
               <input
                 type="text"
                 id="lastName"
@@ -170,7 +160,7 @@ export default function RegisterPage() {
           </div>
 
           <div className="mb-4">
-          <label htmlFor="email" className="block text-sm font-medium text-black">
+            <label htmlFor="email" className="block text-sm font-medium text-black">
               Email
             </label>
             <input
@@ -186,7 +176,7 @@ export default function RegisterPage() {
           </div>
 
           <div className="mb-4">
-          <label htmlFor="password" className="block text-sm font-medium text-black">
+            <label htmlFor="password" className="block text-sm font-medium text-black">
               Password
             </label>
             <input
@@ -202,12 +192,12 @@ export default function RegisterPage() {
           </div>
 
           <div className="w-full flex-row flex justify-end">
-          <button
-            type="submit"
-            className="bg-[#00A9C5] text-white rounded-full py-2 px-8 hover:bg-[#0088A3] focus:outline-none"
-          >
-            Register
-          </button>
+            <button
+              type="submit"
+              className="bg-[#00A9C5] text-white rounded-full py-2 px-8 hover:bg-[#0088A3] focus:outline-none"
+            >
+              Register
+            </button>
           </div>
           {message && <div className="text-red-500 text-sm">{message}</div>}
         </form>
