@@ -1,4 +1,11 @@
-# Backend API Documentation
+## Links
+Video 1: https://www.youtube.com/watch?v=ZfgtXeQmehQ&ab_channel=Fabian
+
+Video 2: https://www.youtube.com/watch?v=s2nU40OTkeY&ab_channel=Fabian
+
+https://github.com/Fabiang120/PartingGifts
+
+
 
 ## Overview
 This document provides a detailed explanation of the backend API endpoints for the application along with a walkthrough of the work for sprint2. The backend is built using Go and SQLite, handling user authentication, file uploads, and automated email notifications.
@@ -131,6 +138,34 @@ Renders a form for receiver information and triggers an alert when essential ses
 
 ## Cypress Test
 
+Page Load Test
+Ensures the Forgot Password page loads correctly.
+Expected Result: The page displays the form, buttons, and input fields.
+
+Method Selection Test
+Allows users to toggle between Email Reset and Security Question options.
+Expected Result: The UI updates based on the selected method.
+
+Security Question Selection Test
+Ensures users can select a security question and provide an answer.
+Expected Result: The dropdown and input field for security questions appear when the method is selected.
+
+Form Submission (Successful Case)
+Mocks a successful API response when submitting the form.
+Expected Result: Displays a success message if the request is valid.
+
+Error Handling for Missing Email
+Ensures an error message appears when trying to submit the form without an email.
+Expected Result: Users are prompted to enter an email before submitting.
+
+Navigation Test
+Verifies that clicking "Back to Log in" navigates the user to the login page.
+Expected Result: The user is redirected correctly.
+Outcome
+All tests passed successfully, confirming that the Forgot Password functionality works as expected.
+
+
+# Backend API Documentation
 
 ## Endpoints
 

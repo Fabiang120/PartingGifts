@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "preinstall": "npx npm-force-resolutions",
     "dev": "next dev -p 4200",
     "build": "next build",
     "start": "next start",
@@ -21,8 +22,10 @@
     "html-to-pdfmake": "^2.5.21",
     "jspdf": "^3.0.0",
     "next": "^15.2.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "swagger-ui-dist": "^5.20.1",
+    "swagger-ui-react": "^5.20.1",
     "tiptap-extension-font-size": "^1.2.0"
   },
   "devDependencies": {
@@ -38,5 +41,12 @@
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "vitest": "^3.0.7"
+  },
+  "resolutions": {
+    "@braintree/sanitize-url": "^6.0.0",
+    "dompurify": "^3.2.4",
+    "fast-json-patch": "3.1.2",
+    "canvg": "^4.0.3",
+    "prismjs": "^1.30.1"
   }
 }
