@@ -1,0 +1,328 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Parting Gifts API",
+    "version": "1.0.0",
+    "description": "API documentation for Parting Gifts application."
+  },
+  "servers": [
+    { "url": "http://localhost:8080", "description": "Local backend server" }
+  ],
+  "tags": [
+    {
+      "name": "API",
+      "description": "Everything about our API",
+      "externalDocs": { "description": "Find out more", "url": "http://swagger.io" }
+    }
+  ],
+  "paths": {
+    "/create-account": {
+      "post": {
+        "tags": [ "API" ],
+        "summary": "Create a new user account",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } } },
+        "responses": { "201": { "description": "Account created successfully" }, "409": { "description": "Username is taken" } }
+      }
+    },
+    "/update-emails": {
+      "get": {
+        "tags": [ "API" ],
+        "summary": "Get user email details",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "username",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Username of the user"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User email details",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserEmails" } } }
+          },
+          "404": { "description": "User not found" }
+        }
+      },
+      "post": {
+        "tags": [ "API" ],
+        "summary": "Update user email details",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserEmails" } } } },
+        "responses": { "200": { "description": "Personal details updated successfully" }, "404": { "description": "User not found" } }
+      }
+    },
+    "/upload-gift": {
+      "post": {
+        "tags": [ "API" ],
+        "summary": "Upload a gift file",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": { "type": "string" },
+                  "file": { "type": "string", "format": "binary" },
+                  "emailMessage": { "type": "string" }
+                },
+                "required": [ "username", "file" ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Gift uploaded successfully",
+            "content": {
+              "application/json": { "schema": { "type": "object", "properties": { "message": { "type": "string" }, "giftId": { "type": "integer" } } } }
+            }
+          }
+        }
+      }
+    },
+    "/login": {
+      "post": {
+        "tags": [ "API" ],
+        "summary": "User login",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } } },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginResponse" } } }
+          },
+          "401": { "description": "Invalid username or password" },
+          "404": { "description": "User not found" }
+        }
+      }
+    },
+    "/reset-password": {
+      "post": {
+        "tags": [ "API" ],
+        "summary": "Reset user password",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResetPasswordRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Password reset instructions have been sent to your email" },
+          "404": { "description": "User not found" }
+        }
+      }
+    },
+    "/change-password": {
+      "post": {
+        "tags": [ "API" ],
+        "summary": "Change user password",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChangePasswordRequest" } } }
+        },
+        "responses": { "200": { "description": "Password changed successfully" }, "404": { "description": "User not found" } }
+      }
+    },
+    "/setup-receivers": {
+      "post": {
+        "tags": [ "API" ],
+        "summary": "Set up receivers for a gift",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SetupReceiversRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Receivers set up successfully. Inactivity check scheduled." },
+          "404": { "description": "Gift not found" }
+        }
+      }
+    },
+    "/gift-count": {
+      "get": {
+        "tags": [ "API" ],
+        "summary": "Get count of gifts for a user",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "username",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Username to retrieve gift count"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gift count",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "count": { "type": "integer" } } } } }
+          },
+          "404": { "description": "User not found" }
+        }
+      }
+    },
+    "/gifts": {
+      "get": {
+        "tags": [ "API" ],
+        "summary": "Get gifts for a user",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "username",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Username to retrieve gifts"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of gifts",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Gift" } } } }
+          },
+          "404": { "description": "User not found" }
+        }
+      }
+    },
+    "/download-gift": {
+      "get": {
+        "tags": [ "API" ],
+        "summary": "Download or view a gift file",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Gift ID to download or view"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gift file",
+            "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } }
+          },
+          "404": { "description": "Gift not found" }
+        }
+      }
+    },
+    "/dashboard/pending-gifts": {
+      "get": {
+        "tags": [ "API" ],
+        "summary": "Get count of pending gifts for a user",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "username",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Username to retrieve pending gifts count"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending gifts count",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "pending_messages": { "type": "integer" } } } } }
+          },
+          "404": { "description": "User not found" }
+        }
+      }
+    },
+    "/get-receivers": {
+      "get": {
+        "tags": [ "API" ],
+        "summary": "Get receiver emails for a user",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "username",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Username to retrieve receiver emails"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of receiver emails",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "type": "string" } } } }
+          },
+          "404": { "description": "User not found" }
+        }
+      }
+    },
+    "/schedule-check": {
+      "post": {
+        "tags": [ "API" ],
+        "summary": "Schedule inactivity check and gift sending",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ScheduleCheckRequest" } } }
+        },
+        "responses": { "200": { "description": "Inactivity check scheduled" }, "404": { "description": "User not found" } }
+      }
+    },
+    "/stop-pending-gift": {
+      "delete": {
+        "tags": [ "API" ],
+        "summary": "Stop a pending gift",
+        "parameters": [ { "in": "query", "name": "id", "required": true, "schema": { "type": "integer" }, "description": "Gift ID to stop" } ],
+        "responses": { "200": { "description": "Gift stopped successfully" }, "404": { "description": "Gift not found" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "username": { "type": "string" },
+          "password": { "type": "string" },
+          "primary_contact_email": { "type": "string" },
+          "secondary_contact_emails": { "type": "string" }
+        },
+        "required": [ "username", "password" ]
+      },
+      "UserEmails": {
+        "type": "object",
+        "properties": {
+          "username": { "type": "string" },
+          "primary_contact_email": { "type": "string" },
+          "secondary_contact_emails": { "type": "string" }
+        },
+        "required": [ "username" ]
+      },
+      "Gift": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "file_name": { "type": "string" },
+          "custom_message": { "type": "string" },
+          "upload_time": { "type": "string", "format": "date-time" }
+        },
+        "required": [ "id", "file_name", "upload_time" ]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": { "username": { "type": "string" }, "password": { "type": "string" } },
+        "required": [ "username", "password" ]
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": { "message": { "type": "string" }, "forceChange": { "type": "boolean" } },
+        "required": [ "message", "forceChange" ]
+      },
+      "ResetPasswordRequest": { "type": "object", "properties": { "email": { "type": "string" } }, "required": [ "email" ] },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "properties": { "username": { "type": "string" }, "newPassword": { "type": "string" } },
+        "required": [ "username", "newPassword" ]
+      },
+      "SetupReceiversRequest": {
+        "type": "object",
+        "properties": { "giftId": { "type": "integer" }, "receivers": { "type": "string" }, "customMessage": { "type": "string" } },
+        "required": [ "giftId", "receivers" ]
+      },
+      "ScheduleCheckRequest": {
+        "type": "object",
+        "properties": { "username": { "type": "string" }, "customMessage": { "type": "string" } },
+        "required": [ "username" ]
+      }
+    }
+  }
+}

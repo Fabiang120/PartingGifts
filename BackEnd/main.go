@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
@@ -98,11 +99,22 @@ func main() {
 	http.HandleFunc("/get-receivers", GetReceiverHandler)
 	http.HandleFunc("/schedule-check", scheduleInactivityCheckHandler)
 	http.HandleFunc("/stop-pending-gift", stopPendingGiftHandler)
-
+	http.HandleFunc("/swagger.json", swaggerHandler)
+	
 	fmt.Println("Server listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
+}
+
+func swaggerHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    data, err := ioutil.ReadFile("swagger.json")
+    if err != nil {
+        http.Error(w, "Swagger file not found", http.StatusNotFound)
+        return
+    }
+    w.Write(data)
 }
 
 func generateRandomPassword(length int) (string, error) {
