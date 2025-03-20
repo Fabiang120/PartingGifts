@@ -1,20 +1,57 @@
-Clone the repository to your local machine using Git. Once you have the code, open a terminal in the project directory.
+Overview
 
-GOLANG
-Next, install Go by downloading it from golang.org/dl. Follow the installer instructions for your operating system, then verify the installation by running go version in your terminal.
+This project has a Go based backend API that works with the frontend to provide a gift sharing platform. Currently users can create accounts, upload digital gifts (files), assign gifts to receivers, automate email notifications, and securely manage their passwords / accounts.
 
-SQLITE3
+Setup & Installation
 
-For SQLite3 on Windows, download the precompiled binary from the SQLite Download Page. Look for the "sqlite-tools" package for Windows. After downloading, extract the zip file and place the resulting folder (containing sqlite3.exe) in a convenient location. To make it easier to run SQLite from any command prompt, add the folder path to your system’s PATH environment variable. You can verify the installation by opening a new Command Prompt or PowerShell window and running sqlite3 --version.
+1. Clone the repository to your local machine using Git. 
 
-The project automatically creates or opens an SQLite database file named app.db. If you want to create a new database manually, open your terminal and type sqlite3 app.db to start the SQLite command-line interface. You can then run SQL commands (like CREATE TABLE IF NOT EXISTS ...) to set up your database schema. This project’s Go code handles this automatically.
+2. Install Go
+https://go.dev/doc/install
 
-RUN THE BACKEND
-Before running the project, execute go mod tidy in the project directory to install all required dependencies. Finally, start the server by running go run main.go. The server will open or create the app.db file, ensure a users table exists (with unique usernames and passwords), and listen on port 8080 for JSON registration requests at the /create-account endpoint, with CORS enabled for requests coming from http://localhost:4200.
+After installation, verify the installation with the command go version in the terminal.
 
+3. Install SQLite3
+The backend uses SQLite3 as its database engine.
 
-GOMAIL
+https://www.sqlite.org/download.html
 
-This project uses the gomail.v2 package to handle email sending with attachments. To install gomail, run the following command in your project directory:go get gopkg.in/gomail.v2
+4. Configure the Database
+The backend automatically creates and configures the database when you start the server.
 
-This command downloads and installs the gomail package, which simplifies the process of creating and sending emails, including handling attachments. In the code, gomail is imported with the line import "gopkg.in/gomail.v2"
+5. Install Go Dependencies
+Run the following command to install all required Go dependencies:
+
+go mod tidy
+
+This ensures all necessary packages go packages are installed.
+
+6.Install & Configure Gomail
+This project uses Gomail to send emails with attachments.
+
+Install Gomail:
+
+go get gopkg.in/gomail.v2
+
+Set Up SMTP Credentials:
+The server requires SMTP credentials for sending emails.
+In main.go, update the SMTP settings:
+
+smtpHost := "smtp.gmail.com"
+smtpPort := 587
+senderEmail := "your-email@gmail.com"
+senderPassword := "your-app-password"
+
+For Gmail users:
+Enable "Less secure apps" access or create an App Password in your Google account.
+
+7.Run the Backend
+Start the Go server:
+go run main.go
+
+The backend will start listening at http://localhost:8080.
+
+If successful, you should see:
+
+SQLite database is set up and the tables are ready!
+Server listening on http://localhost:8080
