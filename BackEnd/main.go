@@ -73,6 +73,7 @@ func main() {
         file_name TEXT,
         file_data BLOB,
         custom_message TEXT,
+		pending BOOLEAN DEFAULT 1,
         receivers TEXT,  -- Add this column
         upload_time DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id)
@@ -232,49 +233,39 @@ func giftCountHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func pendingGiftsHandler(w http.ResponseWriter, r *http.Request) {
-	enableCors(&w) // Ensure CORS is enabled
-
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	if r.Method != http.MethodGet {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Extract the username from the query parameters
-	username := r.URL.Query().Get("username")
-	if username == "" {
-		http.Error(w, "Username is required", http.StatusBadRequest)
-		return
-	}
-
-	// Retrieve the user ID from the users table
-	var userID int
-	err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	// Query to count pending gifts **only for this user**
-	var pendingCount int
-	err = db.QueryRow(`
-        SELECT COUNT(*) FROM gifts 
-        WHERE user_id = ? AND (receivers IS NULL OR receivers = '');
-    `, userID).Scan(&pendingCount)
-
-	if err != nil {
-		log.Printf("Error retrieving pending messages count: %v", err)
-		http.Error(w, "Error retrieving pending messages count", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]int{"pending_messages": pendingCount})
+    enableCors(&w)
+    if r.Method == http.MethodOptions {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+    if r.Method != http.MethodGet {
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return
+    }
+    // Extract username and retrieve the userID.
+    username := r.URL.Query().Get("username")
+    if username == "" {
+        http.Error(w, "Username is required", http.StatusBadRequest)
+        return
+    }
+    var userID int
+    err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
+    if err != nil {
+        http.Error(w, "User not found", http.StatusNotFound)
+        return
+    }
+    // Count pending gifts using the pending boolean.
+    var pendingCount int
+    err = db.QueryRow("SELECT COUNT(*) FROM gifts WHERE user_id = ? AND pending = 1", userID).Scan(&pendingCount)
+    if err != nil {
+        log.Printf("Error retrieving pending messages count: %v", err)
+        http.Error(w, "Error retrieving pending messages count", http.StatusInternalServerError)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]int{"pending_messages": pendingCount})
 }
+
 
 // downloadGiftHandler serves the gift file for inline viewing or download.
 func downloadGiftHandler(w http.ResponseWriter, r *http.Request) {
@@ -691,7 +682,7 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Store in database
 	result, err := db.Exec(
-		"INSERT INTO gifts (user_id, file_name, file_data, custom_message) VALUES (?, ?, ?, ?)",
+		"INSERT INTO gifts (user_id, file_name, file_data, custom_message, pending) VALUES (?, ?, ?, ?, 1)",
 		userID, header.Filename, fileData, customMessage,
 	)
 	if err != nil {
@@ -831,12 +822,17 @@ func setupReceiversHandler(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(1 * time.Minute)
 		// Finally, send the gift email to the receivers using the stored custom message.
 		if err := sendGiftEmailToReceivers(fileName, fileData, storedCustomMessage, req.Receivers); err != nil {
-			log.Printf("Error sending gift email: %v", err)
+    		log.Printf("Error sending gift email: %v", err)
 		} else {
-			log.Printf("Gift email sent successfully to receivers for gift %d", req.GiftID)
+    		// Mark the gift as no longer pending
+   			_, updateErr := db.Exec("UPDATE gifts SET pending = 0 WHERE id = ?", req.GiftID)
+    		if updateErr != nil {
+        		log.Printf("Error updating pending status for gift %d: %v", req.GiftID, updateErr)
+    		} else {
+        		log.Printf("Gift email sent successfully and pending status updated for gift %d", req.GiftID)
+    		}
 		}
 	}()
-
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Receivers set up successfully. Inactivity check scheduled."))
