@@ -81,31 +81,38 @@ function Header() {
 
 export default function Home() {
   return (
-    <body className="bg-white">
-    <Header/>
-    <div className="p-5">
-      <div className="flex flex-row items-center">
-        <div>
-        <span className="text-transparent font-bold text-4xl bg-clip-text bg-gradient-to-br to-[#FED9B7] from-[#F6A4A2]">
-          Memories that Live On
-        </span>
-        <p className="text-lg text-gray-700 pt-5">
-          Parting Gifts is a heartfelt platform designed to preserve and share love, wisdom, and memories.
-          Our mission is to help individuals leave meaningful video messages for their loved ones,
-          creating a lasting connection that transcends time and space.
-          <br />
-          <br />
-          More than just a website, it ensures your voice and emotions are always remembered.
-        </p>
-        </div>
-        <div className="lg:w-[2000px] md:w-[900px] sm:w-[600px]">
-          <Image src="/indeximg1.jpg" alt="Friends smiling" width={2000} height={1000} className="rounded-lg shadow-lg" />
+    <div className="bg-white">
+      <Header />
+      <div className="p-5">
+        <div className="flex flex-row items-center">
+          <div>
+            <span className="text-transparent font-bold text-4xl bg-clip-text bg-gradient-to-br to-[#FED9B7] from-[#F6A4A2]">
+              Memories that Live On
+            </span>
+            <p className="text-lg text-gray-700 pt-5">
+              Parting Gifts is a heartfelt platform designed to preserve and share love, wisdom, and memories.
+              Our mission is to help individuals leave meaningful video messages for their loved ones,
+              creating a lasting connection that transcends time and space.
+              <br />
+              <br />
+              More than just a website, it ensures your voice and emotions are always remembered.
+            </p>
+          </div>
+          <div className="lg:w-[2000px] md:w-[900px] sm:w-[600px]">
+            <Image
+              src="/indeximg1.jpg"
+              alt="Friends smiling"
+              width={2000}
+              height={1000}
+              className="rounded-lg shadow-lg"
+            />
+          </div>
         </div>
       </div>
     </div>
-    </body>
   )
 }
+
 
 // export default function Home() {
 //   return (
