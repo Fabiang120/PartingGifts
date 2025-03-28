@@ -8,6 +8,7 @@ const MemoryUploaded = () => {
     phone: "",
     comments: "",
   });
+  const [scheduledTime, setScheduledTime] = useState("");
   const router = useRouter();
 
   const handleInputChange = (e) => {
@@ -25,32 +26,54 @@ const MemoryUploaded = () => {
       return;
     }
 
-    // Build payload for receivers setup.
-    const payload = {
-      giftId: parseInt(giftId, 10),
-      receivers: receiverInfo.email, // assuming this contains one or comma‐separated emails
+    // Build payload for the inactivity check
+    const inactivityPayload = {
+      username,
       customMessage: receiverInfo.comments,
     };
 
+    // Build payload for receivers setup (including scheduledTime)
+    const setupPayload = {
+      giftId: parseInt(giftId, 10),
+      receivers: receiverInfo.email, // assuming one or comma‐separated emails
+      customMessage: receiverInfo.comments,
+      scheduledTime, // if empty, your backend should handle sending immediately
+    };
+
     try {
-      const response = await fetch("http://localhost:8080/setup-receivers", {
+      // First, call the inactivity check handler
+      if (!scheduledTime) {
+        const inactivityResponse = await fetch("http://localhost:8080/schedule-check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(inactivityPayload),
+        });
+
+        if (!inactivityResponse.ok) {
+          const errText = await inactivityResponse.text();
+          throw new Error(`Inactivity check failed: ${errText}`);
+        }
+        console.log("Inactivity check scheduled successfully.");
+      }
+      // Then, call the setup receivers handler
+      const setupResponse = await fetch("http://localhost:8080/setup-receivers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(setupPayload),
       });
 
-      if (response.ok) {
-        alert("Receivers set up successfully. Inactivity check scheduled.");
-        // Clear the gift ID from session storage after a successful setup.
-        sessionStorage.removeItem("currentGiftId");
-        router.push("/dashboard");
-      } else {
-        const errorText = await response.text();
-        alert(`Failed to setup receivers: ${errorText}`);
+      if (!setupResponse.ok) {
+        const errText = await setupResponse.text();
+        throw new Error(`Setup receivers failed: ${errText}`);
       }
+
+      alert("Receivers set up successfully. Gift scheduled.");
+      // Clear the gift ID from sessionStorage after a successful setup.
+      sessionStorage.removeItem("currentGiftId");
+      router.push("/dashboard");
     } catch (error) {
       console.error("Setup error:", error);
-      alert("Error setting up receivers: " + error.message);
+      alert("Error: " + error.message);
     }
   };
 
@@ -123,6 +146,19 @@ const MemoryUploaded = () => {
               value={receiverInfo.comments}
               onChange={handleInputChange}
               rows="4"
+              className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+            />
+          </div>
+          {/* Optional Scheduled Time input */}
+          <div className="flex flex-col">
+            <label htmlFor="scheduleTime" className="text-sm font-medium text-gray-700">
+              Scheduled Time (Optional)
+            </label>
+            <input
+              type="datetime-local"
+              id="scheduleTime"
+              value={scheduledTime}
+              onChange={(e) => setScheduledTime(e.target.value)}
               className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
