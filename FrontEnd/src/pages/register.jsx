@@ -8,6 +8,7 @@ export default function RegisterPage() {
   const [user, setUser] = useState({ firstName: '', lastName: '', username: '', email: '', password: '' });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
   // Validate the form fields.
@@ -175,12 +176,12 @@ export default function RegisterPage() {
             {errors.email && <div className="text-red-500 text-sm">{errors.email}</div>}
           </div>
 
-          <div className="mb-4">
+          <div className="mb-4 relative">
             <label htmlFor="password" className="block text-sm font-medium text-black">
               Password
             </label>
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               id="password"
               value={user.password}
               onChange={(e) => setUser({ ...user, password: e.target.value })}
@@ -188,6 +189,13 @@ export default function RegisterPage() {
               placeholder="Enter your password"
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-blue-600"
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
             {errors.password && <div className="text-red-500 text-sm">{errors.password}</div>}
           </div>
 

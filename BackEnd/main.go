@@ -32,11 +32,12 @@ type User struct {
 
 // Gift represents a gift record in the system.
 type Gift struct {
-	ID            int
-	FileName      string
-	FileData      []byte
-	CustomMessage string
-	UploadTime    string
+	ID            int    `json:"id"`
+	FileName      string `json:"file_name"`
+	CustomMessage string `json:"custom_message"`
+	UploadTime    string `json:"upload_time"`
+	Pending       bool   `json:"pending"`
+	FileData      []byte `json:"-"`
 }
 
 var db *sql.DB
@@ -134,7 +135,7 @@ func generateRandomPassword(length int) (string, error) {
 
 func enableCors(w *http.ResponseWriter) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+	(*w).Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE")
 	(*w).Header().Set("Access-Control-Allow-Headers", "Content-Type")
 }
 
@@ -351,7 +352,7 @@ func getGiftsHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "User not found"})
 		return
 	}
-	rows, err := db.Query("SELECT id, file_name, custom_message, upload_time FROM gifts WHERE user_id = ? ORDER BY upload_time DESC", userID)
+	rows, err := db.Query("SELECT id, file_name, custom_message, upload_time, pending FROM gifts WHERE user_id = ? ORDER BY upload_time DESC", userID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -362,9 +363,9 @@ func getGiftsHandler(w http.ResponseWriter, r *http.Request) {
 	var gifts []Gift
 	for rows.Next() {
 		var gift Gift
-		if err := rows.Scan(&gift.ID, &gift.FileName, &gift.CustomMessage, &gift.UploadTime); err != nil {
-			continue
-		}
+		if err := rows.Scan(&gift.ID, &gift.FileName, &gift.CustomMessage, &gift.UploadTime, &gift.Pending); err != nil {
+        	continue
+    	}
 		gifts = append(gifts, gift)
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -709,6 +710,11 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
 
 func stopPendingGiftHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
+	if r.Method == http.MethodOptions {
+		// Handle preflight request
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 	if r.Method != http.MethodDelete {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
@@ -749,94 +755,134 @@ func stopPendingGiftHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Gift stopped successfully"))
 }
 
+
 // Setting up new receiver logic //
 func setupReceiversHandler(w http.ResponseWriter, r *http.Request) {
-	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
+    enableCors(&w)
+    if r.Method == http.MethodOptions {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+    if r.Method != http.MethodPost {
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return
+    }
 
-	var req struct {
-		GiftID        int    `json:"giftId"`
-		Receivers     string `json:"receivers"`
-		CustomMessage string `json:"customMessage"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
+    var req struct {
+        GiftID        int    `json:"giftId"`
+        Receivers     string `json:"receivers"`
+        CustomMessage string `json:"customMessage"`
+    }
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
 
-	// Validate that the gift exists and retrieve its details.
-	var userID int
-	var fileName string
-	var fileData []byte
-	err := db.QueryRow("SELECT user_id, file_name, file_data FROM gifts WHERE id = ?", req.GiftID).
-		Scan(&userID, &fileName, &fileData)
-	if err != nil {
-		log.Printf("Error retrieving gift: %v", err)
-		http.Error(w, "Gift not found", http.StatusNotFound)
-		return
-	}
+    // Validate that the gift exists and retrieve its details.
+    var userID int
+    var fileName string
+    var fileData []byte
+    err := db.QueryRow("SELECT user_id, file_name, file_data FROM gifts WHERE id = ?", req.GiftID).
+        Scan(&userID, &fileName, &fileData)
+    if err != nil {
+        log.Printf("Error retrieving gift: %v", err)
+        http.Error(w, "Gift not found", http.StatusNotFound)
+        return
+    }
 
-	// Update the gift record with the receivers.
-	_, err = db.Exec("UPDATE gifts SET receivers = ? WHERE id = ?", req.Receivers, req.GiftID)
-	if err != nil {
-		log.Printf("Error updating receivers: %v", err)
-		http.Error(w, "Failed to update receivers", http.StatusInternalServerError)
-		return
-	}
+    // Update the gift record with the receivers.
+    _, err = db.Exec("UPDATE gifts SET receivers = ? WHERE id = ?", req.Receivers, req.GiftID)
+    if err != nil {
+        log.Printf("Error updating receivers: %v", err)
+        http.Error(w, "Failed to update receivers", http.StatusInternalServerError)
+        return
+    }
 
-	// Retrieve the custom message stored in the gift record.
-	var storedCustomMessage string
-	err = db.QueryRow("SELECT custom_message FROM gifts WHERE id = ?", req.GiftID).Scan(&storedCustomMessage)
-	if err != nil {
-		log.Printf("Error retrieving custom message for gift %d: %v", req.GiftID, err)
-		// Fallback to the request value if needed.
-		storedCustomMessage = req.CustomMessage
-	}
+    // Retrieve the custom message stored in the gift record.
+    var storedCustomMessage string
+    err = db.QueryRow("SELECT custom_message FROM gifts WHERE id = ?", req.GiftID).Scan(&storedCustomMessage)
+    if err != nil {
+        log.Printf("Error retrieving custom message for gift %d: %v", req.GiftID, err)
+        storedCustomMessage = req.CustomMessage
+    }
 
-	// Schedule the inactivity check and then sending the gift email.
-	go func() {
-		// Retrieve the primary email from the user record.
-		var primaryEmail string
-		err := db.QueryRow("SELECT primary_contact_email FROM users WHERE id = ?", userID).Scan(&primaryEmail)
-		if err != nil {
-			log.Printf("Error retrieving primary email for user %d: %v", userID, err)
-			return
-		}
-		// Wait 1 minute, then send the inactivity check email.
-		time.Sleep(1 * time.Minute)
-		checkSubject := "Are you still alive? Your gifts will be sent soon"
-		checkBody := "Hello,\n\nWe noticed you haven't been active recently. Please log in to cancel the gift sending process if you wish."
-		if err := sendCheckEmail(primaryEmail, checkSubject, checkBody); err != nil {
-			log.Printf("Error sending inactivity check email to %s: %v", primaryEmail, err)
-			return
-		}
-		log.Printf("Inactivity check email sent successfully to %s", primaryEmail)
-		// Wait an additional minute.
-		time.Sleep(1 * time.Minute)
-		// Finally, send the gift email to the receivers using the stored custom message.
-		if err := sendGiftEmailToReceivers(fileName, fileData, storedCustomMessage, req.Receivers); err != nil {
-    		log.Printf("Error sending gift email: %v", err)
-		} else {
-    		// Mark the gift as no longer pending
-   			_, updateErr := db.Exec("UPDATE gifts SET pending = 0 WHERE id = ?", req.GiftID)
-    		if updateErr != nil {
-        		log.Printf("Error updating pending status for gift %d: %v", req.GiftID, updateErr)
-    		} else {
-        		log.Printf("Gift email sent successfully and pending status updated for gift %d", req.GiftID)
-    		}
-		}
-	}()
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Receivers set up successfully. Inactivity check scheduled."))
+    // Schedule the inactivity check and sending of the gift email.
+    go func() {
+        // Retrieve the primary email for the user.
+        var primaryEmail string
+        if err := db.QueryRow("SELECT primary_contact_email FROM users WHERE id = ?", userID).Scan(&primaryEmail); err != nil {
+            log.Printf("Error retrieving primary email for user %d: %v", userID, err)
+            return
+        }
+
+        // Helper: check if this specific gift is still pending.
+        isGiftPending := func() bool {
+            var pending bool
+            err := db.QueryRow("SELECT pending FROM gifts WHERE id = ?", req.GiftID).Scan(&pending)
+            if err != nil {
+                return false
+            }
+            return pending
+        }
+
+        // Immediately check before waiting.
+        if !isGiftPending() {
+            log.Printf("Gift %d is no longer pending; aborting process.", req.GiftID)
+            return
+        }
+
+        // Wait 1 minute, checking every 10 seconds.
+        for i := 0; i < 6; i++ {
+            time.Sleep(10 * time.Second)
+            if !isGiftPending() {
+                log.Printf("Gift %d cancelled during wait; aborting process.", req.GiftID)
+                return
+            }
+        }
+
+        // Send inactivity check email.
+        checkSubject := "Are you still alive? Your gift will be sent soon"
+        checkBody := "Hello,\n\nWe noticed you haven't been active recently. Please log in to cancel the gift sending process if you wish."
+        if err := sendCheckEmail(primaryEmail, checkSubject, checkBody); err != nil {
+            log.Printf("Error sending inactivity check email to %s: %v", primaryEmail, err)
+            return
+        }
+        log.Printf("Inactivity check email sent successfully to %s", primaryEmail)
+
+        // Wait an additional minute, checking every 10 seconds.
+        for i := 0; i < 6; i++ {
+            time.Sleep(10 * time.Second)
+            if !isGiftPending() {
+                log.Printf("Gift %d cancelled after inactivity check; aborting gift email send.", req.GiftID)
+                return
+            }
+        }
+
+        // Final check before sending the gift email.
+        if !isGiftPending() {
+            log.Printf("Gift %d is no longer pending; aborting gift email send.", req.GiftID)
+            return
+        }
+
+        // Finally, send the gift email to the receivers.
+        if err := sendGiftEmailToReceivers(fileName, fileData, storedCustomMessage, req.Receivers); err != nil {
+            log.Printf("Error sending gift email: %v", err)
+        } else {
+            // Mark the gift as no longer pending.
+            if _, updateErr := db.Exec("UPDATE gifts SET pending = 0 WHERE id = ?", req.GiftID); updateErr != nil {
+                log.Printf("Error updating pending status for gift %d: %v", req.GiftID, updateErr)
+            } else {
+                log.Printf("Gift email sent successfully and pending status updated for gift %d", req.GiftID)
+            }
+        }
+    }()
+
+    w.Header().Set("Content-Type", "text/plain")
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Receivers set up successfully. Inactivity check scheduled."))
 }
+
+
 
 
 func sendGiftEmailToReceivers(fileName string, fileData []byte, customMessage, receiversParam string) error {
@@ -950,83 +996,113 @@ func GetReceiverHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func scheduleInactivityCheckHandler(w http.ResponseWriter, r *http.Request) {
-	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
-	// Expect payload with username and customMessage.
-	var req struct {
-		Username      string `json:"username"`
-		CustomMessage string `json:"customMessage"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-	// Get the user's primary email and id.
-	var primaryEmail string
-	var userID int
-	err := db.QueryRow("SELECT id, primary_contact_email FROM users WHERE username = ?", req.Username).Scan(&userID, &primaryEmail)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-	// Retrieve all gifts for the user.
-	rows, err := db.Query("SELECT file_name, file_data, custom_message FROM gifts WHERE user_id = ?", userID)
-	if err != nil {
-		http.Error(w, "Error retrieving gifts", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-	var gifts []Gift
-	for rows.Next() {
-		var g Gift
-		if err := rows.Scan(&g.FileName, &g.FileData, &g.CustomMessage); err != nil {
-			continue
-		}
-		gifts = append(gifts, g)
-	}
-	// Get the latest receivers from the user record.
-	var receivers string
-	err = db.QueryRow("SELECT receivers FROM users WHERE username = ?", req.Username).Scan(&receivers)
-	if err != nil {
-		log.Printf("Error retrieving receivers for user %s: %v", req.Username, err)
-	}
-	// Schedule the inactivity check and gift sending in a separate goroutine.
-	go func() {
-		// Wait 1 minute then send inactivity check email.
-		time.Sleep(1 * time.Minute)
-		checkSubject := "Are you still alive? Your gifts will be sent soon"
-		checkBody := "Hello,\n\nWe noticed you haven't been active recently. If you are still there, please log in and click the 'Stop' button to cancel the gift sending process."
-		if err := sendCheckEmail(primaryEmail, checkSubject, checkBody); err != nil {
-			log.Printf("Error sending inactivity check email to %s: %v", primaryEmail, err)
-			return
-		}
-		log.Printf("Inactivity check email sent successfully to %s", primaryEmail)
-		// Wait an additional minute.
-		time.Sleep(1 * time.Minute)
-		// Retrieve the most up-to-date receivers from the user record.
-		var latestReceivers string
-		err := db.QueryRow("SELECT receivers FROM users WHERE username = ?", req.Username).Scan(&latestReceivers)
-		if err != nil {
-			log.Printf("Error retrieving receivers for user %s: %v", req.Username, err)
-			return
-		}
-		// Send the gift email with all attachments.
-		if err := sendAllGiftsEmail(primaryEmail, gifts, req.CustomMessage, latestReceivers); err != nil {
-			log.Printf("Error sending gift email for user %s: %v", req.Username, err)
-		} else {
-			log.Printf("Gift email sent successfully to receivers for user %s", req.Username)
-		}
-	}()
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Inactivity check scheduled."))
+    enableCors(&w)
+    if r.Method == http.MethodOptions {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+    if r.Method != http.MethodPost {
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return
+    }
+    // Expect payload with username and customMessage.
+    var req struct {
+        Username      string `json:"username"`
+        CustomMessage string `json:"customMessage"`
+    }
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+    // Get the user's primary email and id.
+    var primaryEmail string
+    var userID int
+    err := db.QueryRow("SELECT id, primary_contact_email FROM users WHERE username = ?", req.Username).Scan(&userID, &primaryEmail)
+    if err != nil {
+        http.Error(w, "User not found", http.StatusNotFound)
+        return
+    }
+
+    // Schedule the inactivity check and gift sending in a separate goroutine.
+    go func() {
+        // Helper: check if any pending gift exists for the user.
+        hasPending := func() bool {
+            var exists bool
+            err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM gifts WHERE user_id = ? AND pending = 1)", userID).Scan(&exists)
+            if err != nil {
+                // On error (e.g. no rows), assume no pending gift.
+                return false
+            }
+            return exists
+        }
+
+        // Wait 1 minute, checking every 10 seconds.
+        for i := 0; i < 6; i++ {
+            time.Sleep(10 * time.Second)
+            if !hasPending() {
+                log.Printf("No pending gifts for user %s; aborting inactivity check.", req.Username)
+                return
+            }
+        }
+
+        // Re-check before sending the inactivity check email.
+        if !hasPending() {
+            log.Printf("No pending gifts for user %s; aborting inactivity check email.", req.Username)
+            return
+        }
+
+        // Send inactivity check email.
+        checkSubject := "Are you still alive? Your gifts will be sent soon"
+        checkBody := "Hello,\n\nWe noticed you haven't been active recently. If you are still there, please log in and click the 'Stop' button to cancel the gift sending process."
+        if err := sendCheckEmail(primaryEmail, checkSubject, checkBody); err != nil {
+            log.Printf("Error sending inactivity check email to %s: %v", primaryEmail, err)
+            return
+        }
+        log.Printf("Inactivity check email sent successfully to %s", primaryEmail)
+
+        // Wait an additional minute, checking every 10 seconds.
+        for i := 0; i < 6; i++ {
+            time.Sleep(10 * time.Second)
+            if !hasPending() {
+                log.Printf("No pending gifts for user %s; aborting gift email send.", req.Username)
+                return
+            }
+        }
+
+        // Retrieve the latest receivers.
+        var latestReceivers string
+        if err := db.QueryRow("SELECT receivers FROM users WHERE username = ?", req.Username).Scan(&latestReceivers); err != nil {
+            log.Printf("Error retrieving receivers for user %s: %v", req.Username, err)
+            return
+        }
+        // Retrieve all pending gifts for this user.
+        rows, err := db.Query("SELECT file_name, file_data, custom_message FROM gifts WHERE user_id = ? AND pending = 1", userID)
+        if err != nil {
+            log.Printf("Error retrieving pending gifts for user %s: %v", req.Username, err)
+            return
+        }
+        defer rows.Close()
+        var gifts []Gift
+        for rows.Next() {
+            var g Gift
+            if err := rows.Scan(&g.FileName, &g.FileData, &g.CustomMessage); err != nil {
+                continue
+            }
+            gifts = append(gifts, g)
+        }
+        // Send the gift email with all pending gifts attached.
+        if err := sendAllGiftsEmail(primaryEmail, gifts, req.CustomMessage, latestReceivers); err != nil {
+            log.Printf("Error sending gift email for user %s: %v", req.Username, err)
+        } else {
+            log.Printf("Gift email sent successfully to receivers for user %s", req.Username)
+        }
+    }()
+    w.Header().Set("Content-Type", "text/plain")
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Inactivity check scheduled."))
 }
+
+
 
 // sendAllGiftsEmail sends an email to the primary email with all gifts attached.
 // The receivers parameter (a comma-separated string) is added to the "To" field.
