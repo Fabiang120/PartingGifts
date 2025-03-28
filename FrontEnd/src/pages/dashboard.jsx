@@ -160,13 +160,11 @@ const Dashboard = () => {
             Hello {username || "[user]"}!
           </h1>
           <p className="text-red-500">
-            You have{" "}
-            {pendingMessages !== null ? pendingMessages : "Loading..."} unsent messages
+            You have {pendingMessages !== null ? pendingMessages : "Loading..."} unsent messages
           </p>
           <p className="mt-2 text-black">Total messages created: {giftCount}</p>
           <p className="mt-2 text-black">
-            Pending messages to schedule:{" "}
-            {pendingMessages !== null ? pendingMessages : "Loading..."}
+            Pending messages to schedule: {pendingMessages !== null ? pendingMessages : "Loading..."}
           </p>
           <p className="mt-2 text-blue-500 hover:underline cursor-pointer">
             View Calendar
@@ -186,7 +184,8 @@ const Dashboard = () => {
             {/* Render your memory thumbnails here */}
           </div>
         </div>
-        {/* Pending Messages Section */}
+
+        {/* Pending Gifts Section */}
         <div>
           <h2 className="text-lg font-bold mb-4 text-black">Pending Gifts</h2>
           {pendingMessages === 0 ? (
@@ -194,16 +193,12 @@ const Dashboard = () => {
           ) : (
             <ul className="space-y-4">
               {gifts
-                .filter((gift) => !gift.scheduled_time) // Only show pending gifts
+                .filter((gift) => gift.pending)
                 .map((gift) => (
                   <li key={gift.id} className="border p-4 rounded-lg flex flex-col bg-gray-50">
                     <p className="text-lg font-semibold text-black">
                       {gift.file_name || "Message Gift"}
                     </p>
-
-                    {/* Debugging Log */}
-                    {console.log("Gift ID in frontend:", gift.id, "Full Object:", gift)}
-
                     <button
                       className="mt-2 px-4 py-1 bg-red-500 text-white rounded-md hover:bg-red-600"
                       onClick={() => {
@@ -219,24 +214,24 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Gifts Section */}
+        {/* Your Gifts Section */}
         <div>
           <h2 className="text-lg font-bold mb-4 text-black">Your Gifts</h2>
           <div className="flex space-x-4 overflow-x-auto">
             {(gifts || []).map((gift) => (
               <div
-                key={gift.ID} // Note: Using capitalized property from Go
+                key={gift.id}
                 className="min-w-[200px] p-4 bg-white rounded-lg shadow-md flex flex-col items-center"
               >
-                {gift.FileName && gift.FileName.trim() !== "" ? (
+                {gift.file_name && gift.file_name.trim() !== "" ? (
                   <>
                     <p className="text-sm font-bold text-black">
-                      File: {gift.FileName}
+                      File: {gift.file_name}
                     </p>
                   </>
                 ) : (
                   <p className="text-sm font-bold text-black">
-                    Message: {gift.CustomMessage || "No message provided."}
+                    Message: {gift.custom_message || "No message provided."}
                   </p>
                 )}
                 <button
@@ -272,15 +267,15 @@ const Dashboard = () => {
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white p-6 rounded-lg max-w-lg w-full">
             <h2 className="text-xl font-bold mb-4">Gift Details</h2>
-            {selectedGift.FileName && selectedGift.FileName.trim() !== "" ? (
+            {selectedGift.file_name && selectedGift.file_name.trim() !== "" ? (
               <>
                 <p className="text-sm font-bold text-black">
-                  File: {selectedGift.FileName}
+                  File: {selectedGift.file_name}
                 </p>
-                {isImageFile(selectedGift.FileName) ? (
+                {isImageFile(selectedGift.file_name) ? (
                   <img
-                    src={`http://localhost:8080/download-gift?id=${selectedGift.ID}`}
-                    alt={selectedGift.FileName}
+                    src={`http://localhost:8080/download-gift?id=${selectedGift.id}`}
+                    alt={selectedGift.file_name}
                     className="mb-4 max-h-96 object-contain"
                     onError={(e) => {
                       console.error("Image failed to load:", e.target.src);
@@ -292,17 +287,17 @@ const Dashboard = () => {
                   />
                 ) : (
                   <a
-                    href={`http://localhost:8080/download-gift?id=${selectedGift.ID}`}
-                    download={selectedGift.FileName}
+                    href={`http://localhost:8080/download-gift?id=${selectedGift.id}`}
+                    download={selectedGift.file_name}
                     className="text-blue-500 underline mb-4 block"
                   >
-                    Download {selectedGift.FileName}
+                    Download {selectedGift.file_name}
                   </a>
                 )}
               </>
             ) : (
               <p className="text-sm font-bold text-black">
-                Message: {selectedGift.CustomMessage || "No message provided."}
+                Message: {selectedGift.custom_message || "No message provided."}
               </p>
             )}
             <button

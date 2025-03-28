@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 const LoginPage = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
 
@@ -77,7 +78,7 @@ const LoginPage = () => {
               required
             />
           </div>
-          <div className="mb-4">
+          <div className="mb-4 relative">
             <label
               htmlFor="password"
               className="block text-sm font-medium text-black"
@@ -85,7 +86,7 @@ const LoginPage = () => {
               Password
             </label>
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -93,6 +94,13 @@ const LoginPage = () => {
               placeholder="Enter your password"
               required
             />
+            <button
+              type = "button"
+              onClick = {() => setShowPassword(!showPassword)}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-blue-600"
+              >
+              {showPassword ? "Hide" : "Show"}
+            </button>
           </div>
           <div className="mb-2 text-sm text-right">
             <a href="/forgot-password" className="text-blue-600 hover:underline">
