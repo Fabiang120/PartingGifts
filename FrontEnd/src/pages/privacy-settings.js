@@ -10,13 +10,11 @@ export default function PrivacySettings() {
   const router = useRouter();
 
   useEffect(() => {
-    setTimeout(() => {
-      console.log("Mocking API response...");
-      setIsPrivate(false);
-      setAccessRequests(["user1@example.com", "user2@example.com"]);
-      setApprovedUsers(["friend@example.com"]);
-      setLoading(false);
-    }, 1000);
+    console.log("Setting up privacy data...");
+    setIsPrivate(false);
+    setAccessRequests(["user1@example.com", "user2@example.com"]);
+    setApprovedUsers(["friend@example.com"]);
+    setLoading(false);
   }, []);
 
   const togglePrivacy = () => {
