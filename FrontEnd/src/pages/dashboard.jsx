@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
+// Dashboard.jsx
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
+import SimpleGiftBox from "./SimpleGiftBox.jsx";
 
 const Dashboard = () => {
   const router = useRouter();
@@ -10,74 +12,89 @@ const Dashboard = () => {
   const [gifts, setGifts] = useState([]); // Always an array
   const [selectedGift, setSelectedGift] = useState(null);
   const [pendingMessages, setPendingMessages] = useState(0);
+  const [openingGiftId, setOpeningGiftId] = useState(null); // Track which gift is being opened
+  const dataFetchedRef = useRef(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Effect to clear localStorage when component mounts (to reset gift states)
+  useEffect(() => {
+    // Clear the unwrapped gift state on page load
+    localStorage.removeItem('unwrappedGifts');
+
+    return () => {
+      // Also clear when leaving the page
+      localStorage.removeItem('unwrappedGifts');
+    };
+  }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    const fetchData = async () => {
+      if (dataFetchedRef.current) return;
+      dataFetchedRef.current = true;
+
+      if (typeof window === "undefined") return;
+
       const storedUsername = sessionStorage.getItem("username");
       console.log("Retrieved username:", storedUsername);
-      if (storedUsername) {
-        setUsername(storedUsername);
 
-        // Fetch gift count
-        fetch(`http://localhost:8080/gift-count?username=${storedUsername}`)
-          .then((res) => res.json())
-          .then((data) => {
-            console.log("Gift count data:", data);
-            setGiftCount(data.count || 0);
-          })
-          .catch((error) => {
-            console.error("Error fetching gift count:", error);
-            setGiftCount(0);
-          });
+      if (!storedUsername) {
+        setIsLoading(false);
+        return;
+      }
+      setUsername(storedUsername);
 
-        // Fetch gifts (ensure data is an array)
-        fetch(`http://localhost:8080/gifts?username=${storedUsername}`)
-          .then((res) => res.json())
-          .then((data) => {
-            console.log("Gifts data:", data);
-            setGifts(data || []);
-          })
-          .catch((error) => {
-            console.error("Error fetching gifts:", error);
-            setGifts([]);
-          });
+      try {
+        setIsLoading(true);
+        // Fetch everything in parallel
+        const [
+          giftCountResponse,
+          giftsResponse,
+          receiversResponse,
+          pendingResponse,
+        ] = await Promise.all([
+          fetch(`http://localhost:8080/gift-count?username=${storedUsername}`),
+          fetch(`http://localhost:8080/gifts?username=${storedUsername}`),
+          fetch(`http://localhost:8080/get-receivers?username=${storedUsername}`),
+          fetch(`http://localhost:8080/dashboard/pending-gifts?username=${storedUsername}`),
+        ]);
 
-        // Fetch receiver emails with a null check
-        fetch(`http://localhost:8080/get-receivers?username=${storedUsername}`)
-          .then((res) => res.json())
-          .then((data) => {
-            if (!data) {
-              console.error("No data received from get-receivers");
-              setReceiverEmails([]);
-              return;
-            }
-            if (data.error) {
-              console.error("Error from get-receivers:", data.error);
-              setReceiverEmails([]);
-            } else {
-              console.log("Receiver emails:", data);
-              setReceiverEmails(data || []);
-            }
-          })
-          .catch((error) => {
-            console.error("Error fetching receiver emails:", error);
-            setReceiverEmails([]);
-          });
+        // Process gift count
+        const giftCountData = await giftCountResponse.json();
+        console.log("Gift count data:", giftCountData);
+        setGiftCount(giftCountData.count || 0);
 
-        // Fetch pending messages count
-        fetch(`http://localhost:8080/dashboard/pending-gifts?username=${storedUsername}`)
-          .then((res) => res.json())
-          .then((data) => {
-            console.log("Pending messages data:", data);
-            setPendingMessages(data.pending_messages || 0);
-          })
-          .catch((error) => {
-            console.error("Error fetching pending messages:", error);
-            setPendingMessages(0);
-          });
+        // Process gifts - always start with unwrapped: false
+        const giftsData = await giftsResponse.json();
+        console.log("Gifts data:", giftsData);
+        setGifts((giftsData || []).map((g) => ({
+          ...g,
+          unwrapped: false // Always start as unwrapped: false
+        })));
+
+        // Process receiver emails
+        const receiversData = await receiversResponse.json();
+        if (!receiversData) {
+          console.error("No data received from get-receivers");
+          setReceiverEmails([]);
+        } else if (receiversData.error) {
+          console.error("Error from get-receivers:", receiversData.error);
+          setReceiverEmails([]);
+        } else {
+          console.log("Receiver emails:", receiversData);
+          setReceiverEmails(receiversData || []);
+        }
+
+        // Process pending messages
+        const pendingData = await pendingResponse.json();
+        console.log("Pending messages data:", pendingData);
+        setPendingMessages(pendingData.pending_messages || 0);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setIsLoading(false);
       }
 
-      // Fallback: retrieve receiverEmails from sessionStorage if available.
+      // Fallback for receiver emails
       const storedEmails = sessionStorage.getItem("receiverEmails");
       if (storedEmails) {
         try {
@@ -88,30 +105,27 @@ const Dashboard = () => {
           setReceiverEmails(emails.map((email) => email.trim()));
         }
       }
-    }
+    };
+
+    fetchData();
   }, []);
 
   const stopPendingGift = async (giftId) => {
     console.log("Received gift ID:", giftId);
-
     if (!giftId || isNaN(giftId)) {
       alert("Invalid gift ID. Please try again.");
       return;
     }
-
     try {
-      const response = await fetch(`http://localhost:8080/stop-pending-gift?id=${giftId}`, {
-        method: "DELETE",
-      });
-
+      const response = await fetch(
+        `http://localhost:8080/stop-pending-gift?id=${giftId}`,
+        { method: "DELETE" }
+      );
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to stop gift: ${errorText}`);
       }
-
       alert("Pending gift has been stopped successfully!");
-
-      // Update UI: Remove the canceled gift from the pending list
       setGifts((prevGifts) => prevGifts.filter((gift) => gift.id !== giftId));
     } catch (error) {
       console.error("Error stopping pending gift:", error);
@@ -120,22 +134,35 @@ const Dashboard = () => {
   };
 
   // Navigation handlers
-  const handleNewMemoryClick = () => {
-    router.push("/new-memory");
+  const handleNewMemoryClick = () => router.push("/new-memory");
+  const handleUserProfileClick = () => router.push("/personal-details");
+
+  // Helpers
+  const isImageFile = (fileName) => /\.(jpg|jpeg|png|gif)$/i.test(fileName);
+  const getGiftColor = (id) => {
+    const colors = [
+      "#ff4970",
+      "#4a98ff",
+      "#7c59ff",
+      "#ff8a2a",
+      "#50c878",
+      "#d543a9",
+    ];
+    return colors[id % colors.length];
   };
 
-  const handleUserProfileClick = () => {
-    router.push("/personal-details");
+  const handleOpenGift = (gift) => {
+    console.log("handleOpenGift called for gift ID:", gift.id);
+    setOpeningGiftId(gift.id);
   };
 
-  // Helper: Check if a file is an image by extension.
-  const isImageFile = (fileName) => {
-    return /\.(jpg|jpeg|png|gif)$/i.test(fileName);
-  };
+  // Split gifts into pending and normal
+  const pendingGifts = gifts.filter((gift) => gift.pending);
+  const normalGifts = gifts.filter((gift) => !gift.pending);
 
   return (
     <div className="min-h-screen bg-blue-100">
-      {/* Header Section */}
+      {/* Header */}
       <header className="flex items-center justify-between px-8 py-4 bg-white shadow-md">
         <img
           src="https://i.postimg.cc/VsRBMLgn/pglogo.png"
@@ -149,129 +176,148 @@ const Dashboard = () => {
           >
             User Profile
           </button>
-        </div>
-      </header>
-
+        </div> </header>
       {/* Main Content */}
       <main className="p-8 space-y-8">
-        {/* Welcome Section */}
-        <div className="p-6 bg-white rounded-lg shadow-md">
-          <h1 className="text-xl font-bold text-black">
-            Hello {username || "[user]"}!
-          </h1>
-          <p className="text-red-500">
-            You have {pendingMessages !== null ? pendingMessages : "Loading..."} unsent messages
-          </p>
-          <p className="mt-2 text-black">Total messages created: {giftCount}</p>
-          <p className="mt-2 text-black">
-            Pending messages to schedule: {pendingMessages !== null ? pendingMessages : "Loading..."}
-          </p>
-          <p className="mt-2 text-blue-500 hover:underline cursor-pointer">
-            View Calendar
-          </p>
-          <button
-            className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-            onClick={handleNewMemoryClick}
-          >
-            New Memory
-          </button>
-        </div>
-
-        {/* Previous Memories Section */}
-        <div>
-          <h2 className="text-lg font-bold mb-4 text-black">Previous Memories</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-            {/* Render your memory thumbnails here */}
+        {isLoading ? (
+          <div className="p-6 bg-white rounded-lg shadow-md flex justify-center">
+            <p className="text-lg">Loading your gifts...</p>
           </div>
-        </div>
-
-        {/* Pending Gifts Section */}
-        <div>
-          <h2 className="text-lg font-bold mb-4 text-black">Pending Gifts</h2>
-          {pendingMessages === 0 ? (
-            <p className="text-gray-500">No pending gifts.</p>
-          ) : (
-            <ul className="space-y-4">
-              {gifts
-                .filter((gift) => gift.pending)
-                .map((gift) => (
-                  <li key={gift.id} className="border p-4 rounded-lg flex flex-col bg-gray-50">
-                    <p className="text-lg font-semibold text-black">
-                      {gift.file_name || "Message Gift"}
-                    </p>
-                    <button
-                      className="mt-2 px-4 py-1 bg-red-500 text-white rounded-md hover:bg-red-600"
-                      onClick={() => {
-                        console.log("Stopping gift with ID:", gift.id);
-                        stopPendingGift(gift.id);
-                      }}
-                    >
-                      Stop Pending Gift
-                    </button>
-                  </li>
-                ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Your Gifts Section */}
-        <div>
-          <h2 className="text-lg font-bold mb-4 text-black">Your Gifts</h2>
-          <div className="flex space-x-4 overflow-x-auto">
-            {(gifts || []).map((gift) => (
-              <div
-                key={gift.id}
-                className="min-w-[200px] p-4 bg-white rounded-lg shadow-md flex flex-col items-center"
+        ) : (
+          <>
+            {/* Welcome Section */}
+            <div className="p-6 bg-white rounded-lg shadow-md">
+              <h1 className="text-xl font-bold text-black">Hello {username || "[user]"}!</h1>
+              <p className="text-red-500">You have {pendingMessages} unsent messages</p>
+              <p className="mt-2 text-black">Total messages created: {giftCount}</p>
+              <p className="mt-2 text-black">Pending messages to schedule: {pendingMessages}</p>
+              <p className="mt-2 text-blue-500 hover:underline cursor-pointer">View Calendar</p>
+              <button
+                className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                onClick={handleNewMemoryClick}
               >
-                {gift.file_name && gift.file_name.trim() !== "" ? (
-                  <>
-                    <p className="text-sm font-bold text-black">
-                      File: {gift.file_name}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-sm font-bold text-black">
-                    Message: {gift.custom_message || "No message provided."}
-                  </p>
-                )}
-                <button
-                  className="mt-2 px-4 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                  onClick={() => setSelectedGift(gift)}
-                >
-                  Open
-                </button>
+                New Memory
+              </button>
+            </div>
+            {/* Previous Memories */}
+            <div>
+              <h2 className="text-lg font-bold mb-4 text-black">Previous Memories</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                {/* Memory thumbnails */}
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Receiver Emails Section */}
-        <div className="p-6 bg-white rounded-lg shadow-md">
-          <h2 className="text-lg font-bold mb-4 text-black">Receiver Emails</h2>
-          {receiverEmails && receiverEmails.length > 0 ? (
-            <ul className="list-disc pl-5">
-              {receiverEmails.map((email, index) => (
-                <li key={index} className="text-black">
-                  {email}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-500">No receiver emails found.</p>
-          )}
-        </div>
+            </div>
+            {/* Pending Gifts */}
+            <div>
+              <h2 className="text-lg font-bold mb-4 text-black">Pending Gifts</h2>
+              {pendingGifts.length === 0 ? (
+                <p className="text-gray-500">No pending gifts.</p>
+              ) : (
+                <ul className="space-y-4">
+                  {pendingGifts.map((gift) => (
+                    <li key={gift.id} className="border p-4 rounded-lg flex flex-col bg-gray-50">
+                      <p className="text-lg font-semibold text-black">
+                        {gift.file_name || "Message Gift"}
+                      </p>
+                      <button
+                        className="mt-2 px-4 py-1 bg-red-500 text-white rounded-md hover:bg-red-600"
+                        onClick={() => {
+                          console.log("Stopping gift with ID:", gift.id);
+                          stopPendingGift(gift.id);
+                        }}
+                      >
+                        Stop Pending Gift
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {/* Your Gifts */}
+            <div>
+              <h2 className="text-lg font-bold mb-4 text-black">Your Gifts</h2>
+              {normalGifts.length === 0 ? (
+                <p className="text-gray-500">No gifts found.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {normalGifts.map((gift) => (
+                    <div key={`gift-wrapper-${gift.id}`} className="p-4 bg-white rounded-lg shadow-md flex flex-col items-center">
+                      {/* 3D Gift Box - Using a stable key */}
+                      <div className="mb-3 h-64 w-full flex items-center justify-center">
+                        <SimpleGiftBox
+                          giftId={gift.id}
+                          color={getGiftColor(gift.id)}
+                          size={230}
+                          isOpening={openingGiftId === gift.id}
+                          onOpenComplete={() => {
+                            console.log("Gift unwrapped:", gift.id);
+                            setOpeningGiftId(null);
+                            setSelectedGift(gift);
+                          }}
+                          giftContent={
+                            gift.file_name && isImageFile(gift.file_name) ? (
+                              <img
+                                src={`http://localhost:8080/download-gift?id=${gift.id}`}
+                                alt={gift.file_name}
+                                className="max-h-48 max-w-48 object-contain animate-pop"
+                              />
+                            ) : (
+                              <div className="p-3 rounded shadow-lg animate-pop max-w-[200px]">
+                                {gift.file_name ? (
+                                  <p className="text-sm font-bold">{gift.file_name}</p>
+                                ) : (
+                                  <p className="text-sm font-bold">
+                                    {gift.custom_message || "Gift"}
+                                  </p>
+                                )}
+                              </div>
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="text-center">
+                        {gift.file_name && gift.file_name.trim() !== "" ? (
+                          <p className="text-sm font-bold text-black">{gift.file_name}</p>
+                        ) : (
+                          <p className="text-sm font-bold text-black">
+                            {gift.custom_message ? "Message Gift" : "No message provided."}
+                          </p>
+                        )}
+                        <button
+                          className="mt-3 px-6 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full hover:from-pink-600 hover:to-purple-600 transform transition-transform hover:scale-105 shadow-md"
+                          onClick={() => handleOpenGift(gift)}
+                          disabled={openingGiftId === gift.id}
+                        >
+                          {openingGiftId === gift.id ? "Unwrapping..." : "Unwrap Gift"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Receiver Emails */}
+            <div className="p-6 bg-white rounded-lg shadow-md">
+              <h2 className="text-lg font-bold mb-4 text-black">Receiver Emails</h2>
+              {receiverEmails && receiverEmails.length > 0 ? (
+                <ul className="list-disc pl-5">
+                  {receiverEmails.map((email, index) => (
+                    <li key={index} className="text-black">{email}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-500">No receiver emails found.</p>
+              )}
+            </div>
+          </>
+        )}
       </main>
-
-      {/* Gift Modal */}
       {selectedGift && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <div className="bg-white p-6 rounded-lg max-w-lg w-full">
             <h2 className="text-xl font-bold mb-4">Gift Details</h2>
             {selectedGift.file_name && selectedGift.file_name.trim() !== "" ? (
               <>
-                <p className="text-sm font-bold text-black">
-                  File: {selectedGift.file_name}
-                </p>
+                <p className="text-sm font-bold text-black">File: {selectedGift.file_name}</p>
                 {isImageFile(selectedGift.file_name) ? (
                   <img
                     src={`http://localhost:8080/download-gift?id=${selectedGift.id}`}

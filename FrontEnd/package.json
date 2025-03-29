@@ -3,50 +3,30 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "preinstall": "npx npm-force-resolutions",
     "dev": "next dev -p 4200",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "test": "vitest"
+    "lint": "next lint"
   },
   "dependencies": {
-    "@react-pdf/renderer": "^4.2.4",
-    "@tiptap/extension-color": "^2.11.5",
-    "@tiptap/extension-highlight": "^2.11.5",
-    "@tiptap/extension-image": "^2.11.5",
-    "@tiptap/extension-text-style": "^2.11.5",
-    "@tiptap/extension-underline": "^2.11.5",
-    "@tiptap/react": "^2.11.5",
-    "@tiptap/starter-kit": "^2.11.5",
-    "html-to-pdfmake": "^2.5.21",
-    "jspdf": "^3.0.0",
-    "next": "^15.2.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "swagger-ui-dist": "^5.20.1",
-    "swagger-ui-react": "^5.20.1",
-    "tiptap-extension-font-size": "^1.2.0"
+    "@react-three/drei": "^9.77.0",
+    "@react-three/fiber": "^8.13.0",
+    "gsap": "^3.11.5",
+    "next": "^15.2.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "swagger-ui-dist": "^5.20.2",
+    "swagger-ui-react": "^5.20.2",
+    "three": "^0.175.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.26.10",
     "@babel/preset-env": "^7.26.9",
     "@babel/preset-react": "^7.26.3",
-    "@eslint/eslintrc": "^3",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.2.0",
-    "@vitejs/plugin-react": "^4.3.4",
-    "eslint": "^9",
-    "eslint-config-next": "15.1.6",
-    "jsdom": "^26.0.0",
-    "postcss": "^8",
-    "tailwindcss": "^3.4.1",
-    "vitest": "^3.0.7"
-  },
-  "resolutions": {
-    "@braintree/sanitize-url": "^6.0.0",
-    "dompurify": "^3.2.4",
-    "fast-json-patch": "3.1.2",
-    "canvg": "^4.0.3",
-    "prismjs": "^1.30.1"
+    "autop": "^1.0.1",
+    "autoprefixer": "^10.4.21",
+    "babel-loader": "^10.0.0",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.3.0"
   }
 }
