@@ -22,12 +22,15 @@ import (
 )
 
 // User represents a user in the system.
+// User represents a user in the system.
 type User struct {
-	ID                     int    `json:"id"`
-	Username               string `json:"username"`
-	Password               string `json:"password"`
-	PrimaryContactEmail    string `json:"primary_contact_email,omitempty"`
-	SecondaryContactEmails string `json:"secondary_contact_emails,omitempty"`
+    ID                     int    `json:"id"`
+    Username               string `json:"username"`
+    Password               string `json:"password"`
+    PrimaryContactEmail    string `json:"primary_contact_email,omitempty"`
+    SecondaryContactEmails string `json:"secondary_contact_emails,omitempty"`
+    SecurityQuestion       string `json:"security_question,omitempty"`
+    SecurityAnswer         string `json:"security_answer,omitempty"`
 }
 
 // Gift represents a gift record in the system.
@@ -58,6 +61,8 @@ func main() {
         password TEXT,
         primary_contact_email TEXT,
         secondary_contact_emails TEXT,
+        security_question TEXT,
+        security_answer TEXT,
         receivers Text,
         force_password_change BOOLEAN DEFAULT 0
     );
@@ -102,7 +107,9 @@ func main() {
 	http.HandleFunc("/schedule-check", scheduleInactivityCheckHandler)
 	http.HandleFunc("/stop-pending-gift", stopPendingGiftHandler)
 	http.HandleFunc("/swagger.json", swaggerHandler)
-	
+	http.HandleFunc("/verify-security-answer", verifySecurityAnswerHandler)
+	http.HandleFunc("/get-security-info", getSecurityInfoHandler)
+
 	fmt.Println("Server listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("Server failed: %v", err)
@@ -134,9 +141,10 @@ func generateRandomPassword(length int) (string, error) {
 }
 
 func enableCors(w *http.ResponseWriter) {
-	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-	(*w).Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE")
-	(*w).Header().Set("Access-Control-Allow-Headers", "Content-Type")
+    (*w).Header().Set("Access-Control-Allow-Origin", "*")
+    (*w).Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE")
+    (*w).Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+    (*w).Header().Set("Access-Control-Max-Age", "3600")
 }
 
 func createAccountHandler(w http.ResponseWriter, r *http.Request) {
@@ -392,65 +400,274 @@ func isValidPassword(password string) bool {
 }
 
 func personalDetailsHandler(w http.ResponseWriter, r *http.Request) {
-	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
+    enableCors(&w)
+    if r.Method == http.MethodOptions {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
 
-	switch r.Method {
-	case http.MethodGet:
-		// Retrieve user details.
-		username := r.URL.Query().Get("username")
-		if username == "" {
-			http.Error(w, "Username is required", http.StatusBadRequest)
-			return
-		}
-		var user User
-		err := db.QueryRow("SELECT username, primary_contact_email, secondary_contact_emails FROM users WHERE username = ?", username).
-			Scan(&user.Username, &user.PrimaryContactEmail, &user.SecondaryContactEmails)
-		if err != nil {
-			http.Error(w, "User not found", http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(user)
-	case http.MethodPost:
-		var user User
-		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
-		stmt, err := db.Prepare("UPDATE users SET primary_contact_email = ?, secondary_contact_emails = ? WHERE username = ?")
-		if err != nil {
-			log.Printf("Error preparing update statement: %v", err)
-			http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
-			return
-		}
-		defer stmt.Close()
-		res, err := stmt.Exec(user.PrimaryContactEmail, user.SecondaryContactEmails, user.Username)
-		if err != nil {
-			log.Printf("Error executing update: %v", err)
-			http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
-			return
-		}
-		rowsAffected, err := res.RowsAffected()
-		if err != nil {
-			log.Printf("Error retrieving affected rows: %v", err)
-			http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
-			return
-		}
-		if rowsAffected == 0 {
-			http.Error(w, "No user found with that username", http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Personal details updated successfully"))
-	default:
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-	}
+    switch r.Method {
+    case http.MethodGet:
+        // Retrieve user details.
+        username := r.URL.Query().Get("username")
+        if username == "" {
+            http.Error(w, "Username is required", http.StatusBadRequest)
+            return
+        }
+        
+        log.Printf("GET /update-emails - Retrieving details for user: %s", username)
+        
+        // Use SQL NULL handling - Define nullable types
+        var user struct {
+            Username               string         `json:"username"`
+            PrimaryContactEmail    sql.NullString `json:"-"`
+            SecondaryContactEmails sql.NullString `json:"-"`
+            SecurityQuestion       sql.NullString `json:"-"`
+            SecurityAnswer         sql.NullString `json:"-"`
+        }
+        
+        err := db.QueryRow(`
+            SELECT username, primary_contact_email, secondary_contact_emails, 
+                   security_question, security_answer 
+            FROM users WHERE username = ?`, username).
+            Scan(&user.Username, &user.PrimaryContactEmail, &user.SecondaryContactEmails, 
+                 &user.SecurityQuestion, &user.SecurityAnswer)
+                 
+        if err != nil {
+            log.Printf("Error retrieving user details for %s: %v", username, err)
+            if err == sql.ErrNoRows {
+                http.Error(w, "User not found", http.StatusNotFound)
+            } else {
+                http.Error(w, "Database error", http.StatusInternalServerError)
+            }
+            return
+        }
+        
+        // Convert nullable fields to regular strings for JSON response
+        response := map[string]interface{}{
+            "username": user.Username,
+            "primary_contact_email": "",
+            "secondary_contact_emails": "",
+            "security_question": "",
+            "security_answer": "",
+        }
+        
+        // Only set values if they're valid (not NULL)
+        if user.PrimaryContactEmail.Valid {
+            response["primary_contact_email"] = user.PrimaryContactEmail.String
+        }
+        if user.SecondaryContactEmails.Valid {
+            response["secondary_contact_emails"] = user.SecondaryContactEmails.String
+        }
+        if user.SecurityQuestion.Valid {
+            response["security_question"] = user.SecurityQuestion.String
+        }
+        if user.SecurityAnswer.Valid {
+            response["security_answer"] = user.SecurityAnswer.String
+        }
+        
+        // Log retrieved data for debugging
+        log.Printf("Retrieved data for %s: primaryEmail=%v, secondaryEmails=%v", 
+            username, response["primary_contact_email"], response["secondary_contact_emails"])
+            
+        w.Header().Set("Content-Type", "application/json")
+        
+        if err := json.NewEncoder(w).Encode(response); err != nil {
+            log.Printf("Error encoding JSON response: %v", err)
+            http.Error(w, "Error generating response", http.StatusInternalServerError)
+        }
+    
+    case http.MethodPost:
+        // Rest of your POST code remains the same
+        var user User
+        if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+            http.Error(w, "Invalid request body", http.StatusBadRequest)
+            return
+        }
+        
+        log.Printf("POST /update-emails - Updating details for user: %s", user.Username)
+        log.Printf("Received data: primaryEmail=%s, secondaryEmails=%s", 
+            user.PrimaryContactEmail, user.SecondaryContactEmails)
+        
+        stmt, err := db.Prepare(`
+            UPDATE users SET 
+                primary_contact_email = ?, 
+                secondary_contact_emails = ?, 
+                security_question = ?,
+                security_answer = ? 
+            WHERE username = ?`)
+        if err != nil {
+            log.Printf("Error preparing update statement: %v", err)
+            http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
+            return
+        }
+        defer stmt.Close()
+        
+        res, err := stmt.Exec(
+            user.PrimaryContactEmail, 
+            user.SecondaryContactEmails,
+            user.SecurityQuestion, 
+            user.SecurityAnswer, 
+            user.Username)
+        if err != nil {
+            log.Printf("Error executing update: %v", err)
+            http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
+            return
+        }
+        
+        rowsAffected, err := res.RowsAffected()
+        if err != nil {
+            log.Printf("Error retrieving affected rows: %v", err)
+            http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
+            return
+        }
+        
+        if rowsAffected == 0 {
+            log.Printf("No rows affected when updating user %s", user.Username)
+            http.Error(w, "No user found with that username", http.StatusNotFound)
+            return
+        }
+        
+        log.Printf("Successfully updated details for user: %s", user.Username)
+        w.Header().Set("Content-Type", "text/plain")
+        w.WriteHeader(http.StatusOK)
+        w.Write([]byte("Personal details updated successfully"))
+        
+    default:
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+    }
 }
+
+func verifySecurityAnswerHandler(w http.ResponseWriter, r *http.Request) {
+    enableCors(&w)
+    if r.Method == http.MethodOptions {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+    if r.Method != http.MethodPost {
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return
+    }
+    
+    var req struct {
+        Username        string `json:"username"`
+        SecurityAnswer  string `json:"securityAnswer"`
+    }
+    
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+    
+    // Log the received values for debugging
+    log.Printf("Verifying security answer for %s: '%s'", req.Username, req.SecurityAnswer)
+    
+    var storedQuestion, storedAnswer string
+    err := db.QueryRow("SELECT security_question, security_answer FROM users WHERE username = ?", 
+        req.Username).Scan(&storedQuestion, &storedAnswer)
+    if err != nil {
+        log.Printf("Error retrieving security info: %v", err)
+        if err == sql.ErrNoRows {
+            http.Error(w, "User not found", http.StatusNotFound)
+        } else {
+            http.Error(w, "Database error", http.StatusInternalServerError)
+        }
+        return
+    }
+    
+    // Log the values from database for debugging
+    log.Printf("Stored security answer for %s: '%s'", req.Username, storedAnswer)
+    
+    if storedQuestion == "" || storedAnswer == "" {
+        http.Error(w, "Security question not set up for this user", http.StatusBadRequest)
+        return
+    }
+    
+    // Case-insensitive comparison and trim spaces
+    userAnswer := strings.TrimSpace(strings.ToLower(req.SecurityAnswer))
+    dbAnswer := strings.TrimSpace(strings.ToLower(storedAnswer))
+    
+    // Log the trimmed and lowercased values for comparison
+    log.Printf("Comparing: '%s' with '%s'", userAnswer, dbAnswer)
+    
+    if userAnswer != dbAnswer {
+        log.Printf("Security answer mismatch for %s", req.Username)
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusUnauthorized)
+        json.NewEncoder(w).Encode(map[string]string{"error": "Incorrect security answer"})
+        return
+    }
+    
+    // Set force_password_change to true when security answer is used for login
+    _, err = db.Exec("UPDATE users SET force_password_change = 1 WHERE username = ?", req.Username)
+    if err != nil {
+        log.Printf("Failed to set force_password_change: %v", err)
+        // Continue anyway, as authentication was successful
+    }
+    
+    // If answer is correct, return success
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(map[string]string{
+        "message": "Security answer verified successfully",
+        "username": req.Username,
+        "forceChange": "true",
+    })
+}
+
+func getSecurityInfoHandler(w http.ResponseWriter, r *http.Request) {
+    enableCors(&w)
+    if r.Method == http.MethodOptions {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+    if r.Method != http.MethodPost {
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return
+    }
+    
+    var req struct {
+        Email string `json:"email"`
+    }
+    
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+    
+    // Get user info by email
+    var username string
+    var securityQuestion string
+    err := db.QueryRow(`
+        SELECT username, security_question 
+        FROM users 
+        WHERE primary_contact_email = ? OR secondary_contact_emails LIKE ?
+    `, req.Email, "%"+req.Email+"%").Scan(&username, &securityQuestion)
+    
+    if err != nil {
+        if err == sql.ErrNoRows {
+            http.Error(w, "User not found", http.StatusNotFound)
+        } else {
+            log.Printf("Database error in getSecurityInfoHandler: %v", err)
+            http.Error(w, "Database error", http.StatusInternalServerError)
+        }
+        return
+    }
+    
+    // Return the security question and username
+    response := struct {
+        Username        string `json:"username"`
+        SecurityQuestion string `json:"securityQuestion"`
+    }{
+        Username:        username,
+        SecurityQuestion: securityQuestion,
+    }
+    
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
+}
+
+
 
 func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
