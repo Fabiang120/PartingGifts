@@ -152,16 +152,18 @@ func main() {
 	}
 
 	createMessagesTableSQL := `
-    CREATE TABLE IF NOT EXISTS messages (
-        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-        sender_id INTEGER,
-        receiver_id INTEGER,
-        content TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(sender_id) REFERENCES users(id),
-        FOREIGN KEY(receiver_id) REFERENCES users(id)
-    );
-    `
+	CREATE TABLE IF NOT EXISTS messages (
+		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+		sender_id INTEGER,
+		receiver_id INTEGER,
+		subject TEXT,                     -- NEW
+		content TEXT,
+		is_read BOOLEAN DEFAULT 0,       -- NEW
+		timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY(sender_id) REFERENCES users(id),
+		FOREIGN KEY(receiver_id) REFERENCES users(id)
+	);
+	`
 	if _, err := db.Exec(createMessagesTableSQL); err != nil {
 		log.Fatalf("Failed to create messages table: %v", err)
 	}
@@ -190,11 +192,45 @@ func main() {
 	http.HandleFunc("/get-messages", getMessagesHandler)
 	http.HandleFunc("/get-privacy", getPrivacyHandler)
 	http.HandleFunc("/update-privacy", updatePrivacyHandler)
+	http.HandleFunc("/notifications", getMessageNotificationHandler)
 
 	fmt.Println("Server listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
+}
+
+func getMessageNotificationHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		http.Error(w, "Username is required", http.StatusBadRequest)
+		return
+	}
+
+	var userID int
+	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID); err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	var unreadCount int
+	err := db.QueryRow("SELECT COUNT(*) FROM messages WHERE receiver_id = ? AND is_read = 0", userID).Scan(&unreadCount)
+	if err != nil {
+		http.Error(w, "Failed to fetch unread messages", http.StatusInternalServerError)
+		return
+	}
+
+	resp := map[string]int{
+		"unreadMessages": unreadCount,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }
 
 func getPrivacyHandler(w http.ResponseWriter, r *http.Request) {
