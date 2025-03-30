@@ -1,12 +1,16 @@
 package main
 
 import (
-	"io/ioutil"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"math/big"
 	"net/http"
@@ -24,13 +28,13 @@ import (
 // User represents a user in the system.
 // User represents a user in the system.
 type User struct {
-    ID                     int    `json:"id"`
-    Username               string `json:"username"`
-    Password               string `json:"password"`
-    PrimaryContactEmail    string `json:"primary_contact_email,omitempty"`
-    SecondaryContactEmails string `json:"secondary_contact_emails,omitempty"`
-    SecurityQuestion       string `json:"security_question,omitempty"`
-    SecurityAnswer         string `json:"security_answer,omitempty"`
+	ID                     int    `json:"id"`
+	Username               string `json:"username"`
+	Password               string `json:"password"`
+	PrimaryContactEmail    string `json:"primary_contact_email,omitempty"`
+	SecondaryContactEmails string `json:"secondary_contact_emails,omitempty"`
+	SecurityQuestion       string `json:"security_question,omitempty"`
+	SecurityAnswer         string `json:"security_answer,omitempty"`
 }
 
 // Gift represents a gift record in the system.
@@ -44,6 +48,51 @@ type Gift struct {
 }
 
 var db *sql.DB
+
+var secretKey = []byte("mysecretkey12345") // Must be 16, 24, or 32 bytes for AES
+
+func encrypt(text string) (string, error) {
+	block, err := aes.NewCipher(secretKey)
+	if err != nil {
+		return "", err
+	}
+	plaintext := []byte(text)
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	nonce := make([]byte, aesGCM.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return "", err
+	}
+	ciphertext := aesGCM.Seal(nonce, nonce, plaintext, nil)
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
+}
+
+func decrypt(encoded string) (string, error) {
+	ciphertext, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", err
+	}
+	block, err := aes.NewCipher(secretKey)
+	if err != nil {
+		return "", err
+	}
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	nonceSize := aesGCM.NonceSize()
+	if len(ciphertext) < nonceSize {
+		return "", errors.New("invalid ciphertext")
+	}
+	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+	plaintext, err := aesGCM.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", err
+	}
+	return string(plaintext), nil
+}
 
 func main() {
 	var err error
@@ -89,6 +138,21 @@ func main() {
 		log.Fatalf("Failed to create gifts table: %v", err)
 	}
 
+	createMessagesTableSQL := `
+    CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER,
+        receiver_id INTEGER,
+        content TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(sender_id) REFERENCES users(id),
+        FOREIGN KEY(receiver_id) REFERENCES users(id)
+    );
+    `
+	if _, err := db.Exec(createMessagesTableSQL); err != nil {
+		log.Fatalf("Failed to create messages table: %v", err)
+	}
+
 	fmt.Println("SQLite database is set up and the tables are ready!")
 
 	// Register endpoints.
@@ -109,6 +173,8 @@ func main() {
 	http.HandleFunc("/swagger.json", swaggerHandler)
 	http.HandleFunc("/verify-security-answer", verifySecurityAnswerHandler)
 	http.HandleFunc("/get-security-info", getSecurityInfoHandler)
+	http.HandleFunc("/send-message", sendMessageHandler)
+	http.HandleFunc("/get-messages", getMessagesHandler)
 
 	fmt.Println("Server listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
@@ -116,14 +182,111 @@ func main() {
 	}
 }
 
+func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Sender   string `json:"sender"`
+		Receiver string `json:"receiver"`
+		Content  string `json:"content"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	var senderID, receiverID int
+	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", req.Sender).Scan(&senderID); err != nil {
+		http.Error(w, "Sender not found", http.StatusNotFound)
+		return
+	}
+	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", req.Receiver).Scan(&receiverID); err != nil {
+		http.Error(w, "Receiver not found", http.StatusNotFound)
+		return
+	}
+
+	encrypted, err := encrypt(req.Content)
+	if err != nil {
+		http.Error(w, "Encryption failed", http.StatusInternalServerError)
+		return
+	}
+
+	_, err = db.Exec("INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, ?, ?)", senderID, receiverID, encrypted)
+	if err != nil {
+		http.Error(w, "Failed to store message", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Message sent successfully"))
+}
+
+func getMessagesHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		http.Error(w, "Username required", http.StatusBadRequest)
+		return
+	}
+
+	var userID int
+	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID); err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	rows, err := db.Query("SELECT sender_id, content, timestamp FROM messages WHERE receiver_id = ? ORDER BY timestamp DESC", userID)
+	if err != nil {
+		http.Error(w, "Failed to fetch messages", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type Message struct {
+		From      string `json:"from"`
+		Content   string `json:"content"`
+		Timestamp string `json:"timestamp"`
+	}
+	var messages []Message
+
+	for rows.Next() {
+		var senderID int
+		var encryptedContent, timestamp string
+		if err := rows.Scan(&senderID, &encryptedContent, &timestamp); err != nil {
+			continue
+		}
+		var senderUsername string
+		db.QueryRow("SELECT username FROM users WHERE id = ?", senderID).Scan(&senderUsername)
+
+		decrypted, err := decrypt(encryptedContent)
+		if err != nil {
+			decrypted = "[Could not decrypt]"
+		}
+		messages = append(messages, Message{From: senderUsername, Content: decrypted, Timestamp: timestamp})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(messages)
+}
+
 func swaggerHandler(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "application/json")
-    data, err := ioutil.ReadFile("swagger.json")
-    if err != nil {
-        http.Error(w, "Swagger file not found", http.StatusNotFound)
-        return
-    }
-    w.Write(data)
+	w.Header().Set("Content-Type", "application/json")
+	data, err := ioutil.ReadFile("swagger.json")
+	if err != nil {
+		http.Error(w, "Swagger file not found", http.StatusNotFound)
+		return
+	}
+	w.Write(data)
 }
 
 func generateRandomPassword(length int) (string, error) {
@@ -141,10 +304,10 @@ func generateRandomPassword(length int) (string, error) {
 }
 
 func enableCors(w *http.ResponseWriter) {
-    (*w).Header().Set("Access-Control-Allow-Origin", "*")
-    (*w).Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE")
-    (*w).Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-    (*w).Header().Set("Access-Control-Max-Age", "3600")
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	(*w).Header().Set("Access-Control-Max-Age", "3600")
 }
 
 func createAccountHandler(w http.ResponseWriter, r *http.Request) {
@@ -242,39 +405,38 @@ func giftCountHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func pendingGiftsHandler(w http.ResponseWriter, r *http.Request) {
-    enableCors(&w)
-    if r.Method == http.MethodOptions {
-        w.WriteHeader(http.StatusOK)
-        return
-    }
-    if r.Method != http.MethodGet {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-        return
-    }
-    // Extract username and retrieve the userID.
-    username := r.URL.Query().Get("username")
-    if username == "" {
-        http.Error(w, "Username is required", http.StatusBadRequest)
-        return
-    }
-    var userID int
-    err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
-    if err != nil {
-        http.Error(w, "User not found", http.StatusNotFound)
-        return
-    }
-    // Count pending gifts using the pending boolean.
-    var pendingCount int
-    err = db.QueryRow("SELECT COUNT(*) FROM gifts WHERE user_id = ? AND pending = 1", userID).Scan(&pendingCount)
-    if err != nil {
-        log.Printf("Error retrieving pending messages count: %v", err)
-        http.Error(w, "Error retrieving pending messages count", http.StatusInternalServerError)
-        return
-    }
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]int{"pending_messages": pendingCount})
+	enableCors(&w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+	// Extract username and retrieve the userID.
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		http.Error(w, "Username is required", http.StatusBadRequest)
+		return
+	}
+	var userID int
+	err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+	// Count pending gifts using the pending boolean.
+	var pendingCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM gifts WHERE user_id = ? AND pending = 1", userID).Scan(&pendingCount)
+	if err != nil {
+		log.Printf("Error retrieving pending messages count: %v", err)
+		http.Error(w, "Error retrieving pending messages count", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int{"pending_messages": pendingCount})
 }
-
 
 // downloadGiftHandler serves the gift file for inline viewing or download.
 func downloadGiftHandler(w http.ResponseWriter, r *http.Request) {
@@ -372,8 +534,8 @@ func getGiftsHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var gift Gift
 		if err := rows.Scan(&gift.ID, &gift.FileName, &gift.CustomMessage, &gift.UploadTime, &gift.Pending); err != nil {
-        	continue
-    	}
+			continue
+		}
 		gifts = append(gifts, gift)
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -400,274 +562,272 @@ func isValidPassword(password string) bool {
 }
 
 func personalDetailsHandler(w http.ResponseWriter, r *http.Request) {
-    enableCors(&w)
-    if r.Method == http.MethodOptions {
-        w.WriteHeader(http.StatusOK)
-        return
-    }
+	enableCors(&w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 
-    switch r.Method {
-    case http.MethodGet:
-        // Retrieve user details.
-        username := r.URL.Query().Get("username")
-        if username == "" {
-            http.Error(w, "Username is required", http.StatusBadRequest)
-            return
-        }
-        
-        log.Printf("GET /update-emails - Retrieving details for user: %s", username)
-        
-        // Use SQL NULL handling - Define nullable types
-        var user struct {
-            Username               string         `json:"username"`
-            PrimaryContactEmail    sql.NullString `json:"-"`
-            SecondaryContactEmails sql.NullString `json:"-"`
-            SecurityQuestion       sql.NullString `json:"-"`
-            SecurityAnswer         sql.NullString `json:"-"`
-        }
-        
-        err := db.QueryRow(`
+	switch r.Method {
+	case http.MethodGet:
+		// Retrieve user details.
+		username := r.URL.Query().Get("username")
+		if username == "" {
+			http.Error(w, "Username is required", http.StatusBadRequest)
+			return
+		}
+
+		log.Printf("GET /update-emails - Retrieving details for user: %s", username)
+
+		// Use SQL NULL handling - Define nullable types
+		var user struct {
+			Username               string         `json:"username"`
+			PrimaryContactEmail    sql.NullString `json:"-"`
+			SecondaryContactEmails sql.NullString `json:"-"`
+			SecurityQuestion       sql.NullString `json:"-"`
+			SecurityAnswer         sql.NullString `json:"-"`
+		}
+
+		err := db.QueryRow(`
             SELECT username, primary_contact_email, secondary_contact_emails, 
                    security_question, security_answer 
             FROM users WHERE username = ?`, username).
-            Scan(&user.Username, &user.PrimaryContactEmail, &user.SecondaryContactEmails, 
-                 &user.SecurityQuestion, &user.SecurityAnswer)
-                 
-        if err != nil {
-            log.Printf("Error retrieving user details for %s: %v", username, err)
-            if err == sql.ErrNoRows {
-                http.Error(w, "User not found", http.StatusNotFound)
-            } else {
-                http.Error(w, "Database error", http.StatusInternalServerError)
-            }
-            return
-        }
-        
-        // Convert nullable fields to regular strings for JSON response
-        response := map[string]interface{}{
-            "username": user.Username,
-            "primary_contact_email": "",
-            "secondary_contact_emails": "",
-            "security_question": "",
-            "security_answer": "",
-        }
-        
-        // Only set values if they're valid (not NULL)
-        if user.PrimaryContactEmail.Valid {
-            response["primary_contact_email"] = user.PrimaryContactEmail.String
-        }
-        if user.SecondaryContactEmails.Valid {
-            response["secondary_contact_emails"] = user.SecondaryContactEmails.String
-        }
-        if user.SecurityQuestion.Valid {
-            response["security_question"] = user.SecurityQuestion.String
-        }
-        if user.SecurityAnswer.Valid {
-            response["security_answer"] = user.SecurityAnswer.String
-        }
-        
-        // Log retrieved data for debugging
-        log.Printf("Retrieved data for %s: primaryEmail=%v, secondaryEmails=%v", 
-            username, response["primary_contact_email"], response["secondary_contact_emails"])
-            
-        w.Header().Set("Content-Type", "application/json")
-        
-        if err := json.NewEncoder(w).Encode(response); err != nil {
-            log.Printf("Error encoding JSON response: %v", err)
-            http.Error(w, "Error generating response", http.StatusInternalServerError)
-        }
-    
-    case http.MethodPost:
-        // Rest of your POST code remains the same
-        var user User
-        if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-            http.Error(w, "Invalid request body", http.StatusBadRequest)
-            return
-        }
-        
-        log.Printf("POST /update-emails - Updating details for user: %s", user.Username)
-        log.Printf("Received data: primaryEmail=%s, secondaryEmails=%s", 
-            user.PrimaryContactEmail, user.SecondaryContactEmails)
-        
-        stmt, err := db.Prepare(`
+			Scan(&user.Username, &user.PrimaryContactEmail, &user.SecondaryContactEmails,
+				&user.SecurityQuestion, &user.SecurityAnswer)
+
+		if err != nil {
+			log.Printf("Error retrieving user details for %s: %v", username, err)
+			if err == sql.ErrNoRows {
+				http.Error(w, "User not found", http.StatusNotFound)
+			} else {
+				http.Error(w, "Database error", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		// Convert nullable fields to regular strings for JSON response
+		response := map[string]interface{}{
+			"username":                 user.Username,
+			"primary_contact_email":    "",
+			"secondary_contact_emails": "",
+			"security_question":        "",
+			"security_answer":          "",
+		}
+
+		// Only set values if they're valid (not NULL)
+		if user.PrimaryContactEmail.Valid {
+			response["primary_contact_email"] = user.PrimaryContactEmail.String
+		}
+		if user.SecondaryContactEmails.Valid {
+			response["secondary_contact_emails"] = user.SecondaryContactEmails.String
+		}
+		if user.SecurityQuestion.Valid {
+			response["security_question"] = user.SecurityQuestion.String
+		}
+		if user.SecurityAnswer.Valid {
+			response["security_answer"] = user.SecurityAnswer.String
+		}
+
+		// Log retrieved data for debugging
+		log.Printf("Retrieved data for %s: primaryEmail=%v, secondaryEmails=%v",
+			username, response["primary_contact_email"], response["secondary_contact_emails"])
+
+		w.Header().Set("Content-Type", "application/json")
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Printf("Error encoding JSON response: %v", err)
+			http.Error(w, "Error generating response", http.StatusInternalServerError)
+		}
+
+	case http.MethodPost:
+		// Rest of your POST code remains the same
+		var user User
+		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		log.Printf("POST /update-emails - Updating details for user: %s", user.Username)
+		log.Printf("Received data: primaryEmail=%s, secondaryEmails=%s",
+			user.PrimaryContactEmail, user.SecondaryContactEmails)
+
+		stmt, err := db.Prepare(`
             UPDATE users SET 
                 primary_contact_email = ?, 
                 secondary_contact_emails = ?, 
                 security_question = ?,
                 security_answer = ? 
             WHERE username = ?`)
-        if err != nil {
-            log.Printf("Error preparing update statement: %v", err)
-            http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
-            return
-        }
-        defer stmt.Close()
-        
-        res, err := stmt.Exec(
-            user.PrimaryContactEmail, 
-            user.SecondaryContactEmails,
-            user.SecurityQuestion, 
-            user.SecurityAnswer, 
-            user.Username)
-        if err != nil {
-            log.Printf("Error executing update: %v", err)
-            http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
-            return
-        }
-        
-        rowsAffected, err := res.RowsAffected()
-        if err != nil {
-            log.Printf("Error retrieving affected rows: %v", err)
-            http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
-            return
-        }
-        
-        if rowsAffected == 0 {
-            log.Printf("No rows affected when updating user %s", user.Username)
-            http.Error(w, "No user found with that username", http.StatusNotFound)
-            return
-        }
-        
-        log.Printf("Successfully updated details for user: %s", user.Username)
-        w.Header().Set("Content-Type", "text/plain")
-        w.WriteHeader(http.StatusOK)
-        w.Write([]byte("Personal details updated successfully"))
-        
-    default:
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-    }
+		if err != nil {
+			log.Printf("Error preparing update statement: %v", err)
+			http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+		defer stmt.Close()
+
+		res, err := stmt.Exec(
+			user.PrimaryContactEmail,
+			user.SecondaryContactEmails,
+			user.SecurityQuestion,
+			user.SecurityAnswer,
+			user.Username)
+		if err != nil {
+			log.Printf("Error executing update: %v", err)
+			http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			log.Printf("Error retrieving affected rows: %v", err)
+			http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		if rowsAffected == 0 {
+			log.Printf("No rows affected when updating user %s", user.Username)
+			http.Error(w, "No user found with that username", http.StatusNotFound)
+			return
+		}
+
+		log.Printf("Successfully updated details for user: %s", user.Username)
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Personal details updated successfully"))
+
+	default:
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	}
 }
 
 func verifySecurityAnswerHandler(w http.ResponseWriter, r *http.Request) {
-    enableCors(&w)
-    if r.Method == http.MethodOptions {
-        w.WriteHeader(http.StatusOK)
-        return
-    }
-    if r.Method != http.MethodPost {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-        return
-    }
-    
-    var req struct {
-        Username        string `json:"username"`
-        SecurityAnswer  string `json:"securityAnswer"`
-    }
-    
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        http.Error(w, "Invalid request body", http.StatusBadRequest)
-        return
-    }
-    
-    // Log the received values for debugging
-    log.Printf("Verifying security answer for %s: '%s'", req.Username, req.SecurityAnswer)
-    
-    var storedQuestion, storedAnswer string
-    err := db.QueryRow("SELECT security_question, security_answer FROM users WHERE username = ?", 
-        req.Username).Scan(&storedQuestion, &storedAnswer)
-    if err != nil {
-        log.Printf("Error retrieving security info: %v", err)
-        if err == sql.ErrNoRows {
-            http.Error(w, "User not found", http.StatusNotFound)
-        } else {
-            http.Error(w, "Database error", http.StatusInternalServerError)
-        }
-        return
-    }
-    
-    // Log the values from database for debugging
-    log.Printf("Stored security answer for %s: '%s'", req.Username, storedAnswer)
-    
-    if storedQuestion == "" || storedAnswer == "" {
-        http.Error(w, "Security question not set up for this user", http.StatusBadRequest)
-        return
-    }
-    
-    // Case-insensitive comparison and trim spaces
-    userAnswer := strings.TrimSpace(strings.ToLower(req.SecurityAnswer))
-    dbAnswer := strings.TrimSpace(strings.ToLower(storedAnswer))
-    
-    // Log the trimmed and lowercased values for comparison
-    log.Printf("Comparing: '%s' with '%s'", userAnswer, dbAnswer)
-    
-    if userAnswer != dbAnswer {
-        log.Printf("Security answer mismatch for %s", req.Username)
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusUnauthorized)
-        json.NewEncoder(w).Encode(map[string]string{"error": "Incorrect security answer"})
-        return
-    }
-    
-    // Set force_password_change to true when security answer is used for login
-    _, err = db.Exec("UPDATE users SET force_password_change = 1 WHERE username = ?", req.Username)
-    if err != nil {
-        log.Printf("Failed to set force_password_change: %v", err)
-        // Continue anyway, as authentication was successful
-    }
-    
-    // If answer is correct, return success
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(http.StatusOK)
-    json.NewEncoder(w).Encode(map[string]string{
-        "message": "Security answer verified successfully",
-        "username": req.Username,
-        "forceChange": "true",
-    })
+	enableCors(&w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Username       string `json:"username"`
+		SecurityAnswer string `json:"securityAnswer"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Log the received values for debugging
+	log.Printf("Verifying security answer for %s: '%s'", req.Username, req.SecurityAnswer)
+
+	var storedQuestion, storedAnswer string
+	err := db.QueryRow("SELECT security_question, security_answer FROM users WHERE username = ?",
+		req.Username).Scan(&storedQuestion, &storedAnswer)
+	if err != nil {
+		log.Printf("Error retrieving security info: %v", err)
+		if err == sql.ErrNoRows {
+			http.Error(w, "User not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Database error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Log the values from database for debugging
+	log.Printf("Stored security answer for %s: '%s'", req.Username, storedAnswer)
+
+	if storedQuestion == "" || storedAnswer == "" {
+		http.Error(w, "Security question not set up for this user", http.StatusBadRequest)
+		return
+	}
+
+	// Case-insensitive comparison and trim spaces
+	userAnswer := strings.TrimSpace(strings.ToLower(req.SecurityAnswer))
+	dbAnswer := strings.TrimSpace(strings.ToLower(storedAnswer))
+
+	// Log the trimmed and lowercased values for comparison
+	log.Printf("Comparing: '%s' with '%s'", userAnswer, dbAnswer)
+
+	if userAnswer != dbAnswer {
+		log.Printf("Security answer mismatch for %s", req.Username)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Incorrect security answer"})
+		return
+	}
+
+	// Set force_password_change to true when security answer is used for login
+	_, err = db.Exec("UPDATE users SET force_password_change = 1 WHERE username = ?", req.Username)
+	if err != nil {
+		log.Printf("Failed to set force_password_change: %v", err)
+		// Continue anyway, as authentication was successful
+	}
+
+	// If answer is correct, return success
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message":     "Security answer verified successfully",
+		"username":    req.Username,
+		"forceChange": "true",
+	})
 }
 
 func getSecurityInfoHandler(w http.ResponseWriter, r *http.Request) {
-    enableCors(&w)
-    if r.Method == http.MethodOptions {
-        w.WriteHeader(http.StatusOK)
-        return
-    }
-    if r.Method != http.MethodPost {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-        return
-    }
-    
-    var req struct {
-        Email string `json:"email"`
-    }
-    
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        http.Error(w, "Invalid request body", http.StatusBadRequest)
-        return
-    }
-    
-    // Get user info by email
-    var username string
-    var securityQuestion string
-    err := db.QueryRow(`
+	enableCors(&w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Email string `json:"email"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Get user info by email
+	var username string
+	var securityQuestion string
+	err := db.QueryRow(`
         SELECT username, security_question 
         FROM users 
         WHERE primary_contact_email = ? OR secondary_contact_emails LIKE ?
     `, req.Email, "%"+req.Email+"%").Scan(&username, &securityQuestion)
-    
-    if err != nil {
-        if err == sql.ErrNoRows {
-            http.Error(w, "User not found", http.StatusNotFound)
-        } else {
-            log.Printf("Database error in getSecurityInfoHandler: %v", err)
-            http.Error(w, "Database error", http.StatusInternalServerError)
-        }
-        return
-    }
-    
-    // Return the security question and username
-    response := struct {
-        Username        string `json:"username"`
-        SecurityQuestion string `json:"securityQuestion"`
-    }{
-        Username:        username,
-        SecurityQuestion: securityQuestion,
-    }
-    
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(response)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "User not found", http.StatusNotFound)
+		} else {
+			log.Printf("Database error in getSecurityInfoHandler: %v", err)
+			http.Error(w, "Database error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Return the security question and username
+	response := struct {
+		Username         string `json:"username"`
+		SecurityQuestion string `json:"securityQuestion"`
+	}{
+		Username:         username,
+		SecurityQuestion: securityQuestion,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
-
-
 
 func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
@@ -972,110 +1132,105 @@ func stopPendingGiftHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Gift stopped successfully"))
 }
 
-
 // Setting up new receiver logic //
 func setupReceiversHandler(w http.ResponseWriter, r *http.Request) {
-    enableCors(&w)
-    if r.Method == http.MethodOptions {
-        w.WriteHeader(http.StatusOK)
-        return
-    }
-    if r.Method != http.MethodPost {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-        return
-    }
+	enableCors(&w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
 
-    // Extend the request payload to include an optional scheduledTime.
-    var req struct {
-        GiftID        int    `json:"giftId"`
-        Receivers     string `json:"receivers"`
-        CustomMessage string `json:"customMessage"`
-        ScheduledTime string `json:"scheduledTime"` // Expected in RFC3339 format (or empty)
-    }
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        http.Error(w, "Invalid request body", http.StatusBadRequest)
-        return
-    }
+	// Extend the request payload to include an optional scheduledTime.
+	var req struct {
+		GiftID        int    `json:"giftId"`
+		Receivers     string `json:"receivers"`
+		CustomMessage string `json:"customMessage"`
+		ScheduledTime string `json:"scheduledTime"` // Expected in RFC3339 format (or empty)
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
 
-    // Validate that the gift exists and retrieve its details.
-    var userID int
-    var fileName string
-    var fileData []byte
-    err := db.QueryRow("SELECT user_id, file_name, file_data FROM gifts WHERE id = ?", req.GiftID).
-        Scan(&userID, &fileName, &fileData)
-    if err != nil {
-        log.Printf("Error retrieving gift: %v", err)
-        http.Error(w, "Gift not found", http.StatusNotFound)
-        return
-    }
+	// Validate that the gift exists and retrieve its details.
+	var userID int
+	var fileName string
+	var fileData []byte
+	err := db.QueryRow("SELECT user_id, file_name, file_data FROM gifts WHERE id = ?", req.GiftID).
+		Scan(&userID, &fileName, &fileData)
+	if err != nil {
+		log.Printf("Error retrieving gift: %v", err)
+		http.Error(w, "Gift not found", http.StatusNotFound)
+		return
+	}
 
-    // Update the gift record with the receivers.
-    if _, err := db.Exec("UPDATE gifts SET receivers = ? WHERE id = ?", req.Receivers, req.GiftID); err != nil {
-        log.Printf("Error updating receivers: %v", err)
-        http.Error(w, "Failed to update receivers", http.StatusInternalServerError)
-        return
-    }
+	// Update the gift record with the receivers.
+	if _, err := db.Exec("UPDATE gifts SET receivers = ? WHERE id = ?", req.Receivers, req.GiftID); err != nil {
+		log.Printf("Error updating receivers: %v", err)
+		http.Error(w, "Failed to update receivers", http.StatusInternalServerError)
+		return
+	}
 
-    // Retrieve the custom message stored in the gift record.
-    var storedCustomMessage string
-    err = db.QueryRow("SELECT custom_message FROM gifts WHERE id = ?", req.GiftID).Scan(&storedCustomMessage)
-    if err != nil {
-        log.Printf("Error retrieving custom message for gift %d: %v", req.GiftID, err)
-        // Fallback to the provided custom message if retrieval fails.
-        storedCustomMessage = req.CustomMessage
-    }
+	// Retrieve the custom message stored in the gift record.
+	var storedCustomMessage string
+	err = db.QueryRow("SELECT custom_message FROM gifts WHERE id = ?", req.GiftID).Scan(&storedCustomMessage)
+	if err != nil {
+		log.Printf("Error retrieving custom message for gift %d: %v", req.GiftID, err)
+		// Fallback to the provided custom message if retrieval fails.
+		storedCustomMessage = req.CustomMessage
+	}
 
-    // In a separate goroutine, schedule sending of the gift email.
-    go func() {
-        // Determine the delay:
-        // If a scheduled time is provided, parse it and wait until that time;
-        // otherwise, wait a default of 1 minute.
-        var delay time.Duration = 1 * time.Minute
-        if req.ScheduledTime != "" {
-            if scheduledTime, err := time.Parse(time.RFC3339, req.ScheduledTime); err == nil {
-                computedDelay := scheduledTime.Sub(time.Now())
-                if computedDelay > 0 {
-                    delay = computedDelay
-                }
-            } else {
-                log.Printf("Error parsing scheduled time for gift %d: %v", req.GiftID, err)
-            }
-        }
-        log.Printf("Waiting %v before sending gift email for gift %d", delay, req.GiftID)
-        time.Sleep(delay)
+	// In a separate goroutine, schedule sending of the gift email.
+	go func() {
+		// Determine the delay:
+		// If a scheduled time is provided, parse it and wait until that time;
+		// otherwise, wait a default of 1 minute.
+		var delay time.Duration = 1 * time.Minute
+		if req.ScheduledTime != "" {
+			if scheduledTime, err := time.Parse(time.RFC3339, req.ScheduledTime); err == nil {
+				computedDelay := scheduledTime.Sub(time.Now())
+				if computedDelay > 0 {
+					delay = computedDelay
+				}
+			} else {
+				log.Printf("Error parsing scheduled time for gift %d: %v", req.GiftID, err)
+			}
+		}
+		log.Printf("Waiting %v before sending gift email for gift %d", delay, req.GiftID)
+		time.Sleep(delay)
 
-        // Final check: verify the gift is still pending.
-        var stillPending bool
-        if err := db.QueryRow("SELECT pending FROM gifts WHERE id = ?", req.GiftID).Scan(&stillPending); err != nil {
-            log.Printf("Error checking pending status for gift %d: %v", req.GiftID, err)
-            return
-        }
-        if !stillPending {
-            log.Printf("Gift %d is no longer pending; aborting send.", req.GiftID)
-            return
-        }
+		// Final check: verify the gift is still pending.
+		var stillPending bool
+		if err := db.QueryRow("SELECT pending FROM gifts WHERE id = ?", req.GiftID).Scan(&stillPending); err != nil {
+			log.Printf("Error checking pending status for gift %d: %v", req.GiftID, err)
+			return
+		}
+		if !stillPending {
+			log.Printf("Gift %d is no longer pending; aborting send.", req.GiftID)
+			return
+		}
 
-        // Send the gift email to the receivers.
-        if err := sendGiftEmailToReceivers(fileName, fileData, storedCustomMessage, req.Receivers); err != nil {
-            log.Printf("Error sending gift email for gift %d: %v", req.GiftID, err)
-        } else {
-            // Mark the gift as no longer pending.
-            if _, err := db.Exec("UPDATE gifts SET pending = 0 WHERE id = ?", req.GiftID); err != nil {
-                log.Printf("Error updating pending status for gift %d: %v", req.GiftID, err)
-            } else {
-                log.Printf("Gift email sent successfully and pending status updated for gift %d", req.GiftID)
-            }
-        }
-    }()
+		// Send the gift email to the receivers.
+		if err := sendGiftEmailToReceivers(fileName, fileData, storedCustomMessage, req.Receivers); err != nil {
+			log.Printf("Error sending gift email for gift %d: %v", req.GiftID, err)
+		} else {
+			// Mark the gift as no longer pending.
+			if _, err := db.Exec("UPDATE gifts SET pending = 0 WHERE id = ?", req.GiftID); err != nil {
+				log.Printf("Error updating pending status for gift %d: %v", req.GiftID, err)
+			} else {
+				log.Printf("Gift email sent successfully and pending status updated for gift %d", req.GiftID)
+			}
+		}
+	}()
 
-    w.Header().Set("Content-Type", "text/plain")
-    w.WriteHeader(http.StatusOK)
-    w.Write([]byte("Receivers set up successfully. Gift scheduled."))
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Receivers set up successfully. Gift scheduled."))
 }
-
-
-
-
 
 func sendGiftEmailToReceivers(fileName string, fileData []byte, customMessage, receiversParam string) error {
 	// Parse the receivers from the comma-separated string.
@@ -1101,7 +1256,7 @@ func sendGiftEmailToReceivers(fileName string, fileData []byte, customMessage, r
 	m.SetHeader("From", senderEmail)
 	m.SetHeader("Subject", "Your Parting Gift")
 	m.SetHeader("To", recipients...)
-	
+
 	var body string
 	if customMessage != "" {
 		body = customMessage
@@ -1124,7 +1279,6 @@ func sendGiftEmailToReceivers(fileName string, fileData []byte, customMessage, r
 	}
 	return nil
 }
-
 
 func GetReceiverHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
@@ -1298,7 +1452,6 @@ func scheduleInactivityCheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Inactivity check scheduled."))
 }
-
 
 // sendAllGiftsEmail sends an email to the primary email with all gifts attached.
 // The receivers parameter (a comma-separated string) is added to the "To" field.
