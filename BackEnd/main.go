@@ -121,6 +121,19 @@ func main() {
 		log.Fatalf("Failed to create users table: %v", err)
 	}
 
+	createPrivacyTableSQL := `
+	CREATE TABLE IF NOT EXISTS privacy_settings (
+		user_id INTEGER PRIMARY KEY,
+		can_receive_messages BOOLEAN DEFAULT 1,
+		can_be_seen BOOLEAN DEFAULT 1,
+		can_receive_gifts BOOLEAN DEFAULT 1,
+		FOREIGN KEY(user_id) REFERENCES users(id)
+	);
+	`
+	if _, err := db.Exec(createPrivacyTableSQL); err != nil {
+		log.Fatalf("Failed to create privacy_settings table: %v", err)
+	}
+
 	createGiftsTableSQL := `
     CREATE TABLE IF NOT EXISTS gifts (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -175,11 +188,93 @@ func main() {
 	http.HandleFunc("/get-security-info", getSecurityInfoHandler)
 	http.HandleFunc("/send-message", sendMessageHandler)
 	http.HandleFunc("/get-messages", getMessagesHandler)
+	http.HandleFunc("/get-privacy", getPrivacyHandler)
+	http.HandleFunc("/update-privacy", updatePrivacyHandler)
 
 	fmt.Println("Server listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
+}
+
+func getPrivacyHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		http.Error(w, "Username is required", http.StatusBadRequest)
+		return
+	}
+
+	var userID int
+	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID); err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	var canReceiveMessages, canBeSeen, canReceiveGifts bool
+	err := db.QueryRow(`
+		SELECT can_receive_messages, can_be_seen, can_receive_gifts
+		FROM privacy_settings WHERE user_id = ?`, userID).Scan(
+		&canReceiveMessages, &canBeSeen, &canReceiveGifts)
+
+	if err == sql.ErrNoRows {
+		// Return default settings if none exist
+		canReceiveMessages, canBeSeen, canReceiveGifts = true, true, true
+	} else if err != nil {
+		http.Error(w, "Failed to retrieve privacy settings", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]bool{
+		"canReceiveMessages": canReceiveMessages,
+		"canBeSeen":          canBeSeen,
+		"canReceiveGifts":    canReceiveGifts,
+	})
+}
+
+func updatePrivacyHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Username           string `json:"username"`
+		CanReceiveMessages bool   `json:"canReceiveMessages"`
+		CanBeSeen          bool   `json:"canBeSeen"`
+		CanReceiveGifts    bool   `json:"canReceiveGifts"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var userID int
+	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", req.Username).Scan(&userID); err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	_, err := db.Exec(`
+		INSERT INTO privacy_settings (user_id, can_receive_messages, can_be_seen, can_receive_gifts)
+		VALUES (?, ?, ?, ?)
+		ON CONFLICT(user_id) DO UPDATE SET 
+		can_receive_messages = excluded.can_receive_messages,
+		can_be_seen = excluded.can_be_seen,
+		can_receive_gifts = excluded.can_receive_gifts
+	`, userID, req.CanReceiveMessages, req.CanBeSeen, req.CanReceiveGifts)
+
+	if err != nil {
+		http.Error(w, "Failed to update privacy settings", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte("Privacy settings updated successfully"))
 }
 
 func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
@@ -207,6 +302,14 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", req.Receiver).Scan(&receiverID); err != nil {
 		http.Error(w, "Receiver not found", http.StatusNotFound)
+		return
+	}
+
+	// Check if the receiver accepts messages
+	var canReceiveMessages bool = true // default to true
+	err := db.QueryRow("SELECT can_receive_messages FROM privacy_settings WHERE user_id = ?", receiverID).Scan(&canReceiveMessages)
+	if err == nil && !canReceiveMessages {
+		http.Error(w, "User does not accept messages", http.StatusForbidden)
 		return
 	}
 
@@ -1032,11 +1135,20 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get username and validate
+	// Get username and validate
 	username := r.FormValue("username")
 	var userID int
 	err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
 	if err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// Check if user allows receiving gifts
+	var canReceiveGifts bool = true // default to true
+	err = db.QueryRow("SELECT can_receive_gifts FROM privacy_settings WHERE user_id = ?", userID).Scan(&canReceiveGifts)
+	if err == nil && !canReceiveGifts {
+		http.Error(w, "User has disabled gift receiving", http.StatusForbidden)
 		return
 	}
 
