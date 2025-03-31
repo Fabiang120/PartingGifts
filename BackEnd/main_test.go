@@ -373,3 +373,13 @@ func TestUpdatePrivacyHandler(t *testing.T) {
 		t.Errorf("Expected 200 OK, got %d", rec.Code)
 	}
 }
+func TestGetMessageNotificationHandler(t *testing.T) {
+	req := httptest.NewRequest("GET", "/notifications?username=testuser", nil)
+	rec := httptest.NewRecorder()
+
+	getMessageNotificationHandler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+}
