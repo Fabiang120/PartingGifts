@@ -34,7 +34,8 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Welcome back</CardTitle>
+        <img src="/PG-icon.png" alt="Parting Gifts Logo" className="h-12 object-contain" />
+          <CardTitle className="text-xl font-semibold">Welcome back!</CardTitle>
           <CardDescription>
             Login with your username and password.
           </CardDescription>
@@ -50,7 +51,7 @@ export function LoginForm({
                 <div className="grid gap-2">
                   <div className="flex items-center">
                     <Label htmlFor="password">Password</Label>
-                    <a href="/forgot-password" className="ml-auto text-sm underline-offset-4 hover:underline">
+                    <a href="/forgot-password" className="ml-auto text-sm text-gray-600 underline-offset-4 hover:underline">
                       Forgot your password?
                     </a>
                   </div>
