@@ -24,7 +24,7 @@ module.exports = {
   				foreground: '#bfedf5'
   			},
   			secondary: {
-  				DEFAULT: '#f4f4f5',
+  				DEFAULT: '#b6b6b8',
   				foreground: '#18181b'
   			},
   			muted: {

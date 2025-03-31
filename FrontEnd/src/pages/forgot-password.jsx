@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useRouter } from "next/router";
+import { Button } from "@/components/ui/button";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -147,7 +148,7 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-blue-100">
+    <div className="flex items-center justify-center min-h-screen bg-primary-foreground">
       <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-md">
         <div className="text-center mb-6">
           <img
@@ -167,7 +168,7 @@ const ForgotPassword = () => {
             <div className="flex mb-4 space-x-4">
               <button
                 type="button"
-                className={`w-1/2 px-4 py-2 rounded-md focus:outline-none focus:ring ${selectedMethod === "email" ? "bg-blue-500 text-white" : "bg-gray-200"
+                className={`w-1/2 px-4 py-2 rounded-md focus:outline-none focus:ring ${selectedMethod === "email" ? "bg-primary text-white" : "bg-gray-200"
                   }`}
                 onClick={() => setSelectedMethod("email")}
               >
@@ -175,7 +176,7 @@ const ForgotPassword = () => {
               </button>
               <button
                 type="button"
-                className={`w-1/2 px-4 py-2 rounded-md focus:outline-none focus:ring ${selectedMethod === "security" ? "bg-blue-500 text-white" : "bg-gray-200"
+                className={`w-1/2 px-4 py-2 rounded-md focus:outline-none focus:ring ${selectedMethod === "security" ? "bg-primary text-white" : "bg-gray-200"
                   }`}
                 onClick={() => setSelectedMethod("security")}
               >
@@ -196,12 +197,9 @@ const ForgotPassword = () => {
                 required
               />
             </div>
-            <button
-              type="submit"
-              className="w-full px-4 py-2 mb-4 text-white bg-blue-500 rounded-md hover:bg-blue-600 focus:outline-none focus:ring focus:ring-blue-300"
-            >
-              {selectedMethod === "email" ? "Reset Password" : "Continue"}
-            </button>
+            <Button className="w-full h-12 text-white mb-3" type="submit">
+            {selectedMethod === "email" ? "Reset Password" : "Continue"}
+            </Button>
           </form>
         )}
 
@@ -226,19 +224,12 @@ const ForgotPassword = () => {
               />
             </div>
             <div className="flex space-x-3">
-              <button
-                type="button"
-                onClick={handleBack}
-                className="w-1/3 px-4 py-2 mb-4 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring focus:ring-blue-300"
-              >
-                Back
-              </button>
-              <button
-                type="submit"
-                className="w-2/3 px-4 py-2 mb-4 text-white bg-blue-500 rounded-md hover:bg-blue-600 focus:outline-none focus:ring focus:ring-blue-300"
-              >
-                Verify & Login
-              </button>
+              <Button onClick={handleBack} variant="secondary" className="w-1/3 h-12 text-white mb-3" type="button">
+              Back
+              </Button>
+              <Button className="w-2/3 h-12 text-white mb-3" type="submit">
+              Verify & Login
+              </Button>
             </div>
           </form>
         )}
