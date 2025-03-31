@@ -13,10 +13,10 @@
     "@react-three/fiber": "^8.13.0",
     "gsap": "^3.11.5",
     "next": "^15.2.4",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "swagger-ui-dist": "^5.20.2",
-    "swagger-ui-react": "^5.20.2",
+    "swagger-ui-react": "^3.29.0",
     "three": "^0.175.0"
   },
   "devDependencies": {
