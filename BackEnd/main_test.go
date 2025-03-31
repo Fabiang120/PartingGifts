@@ -416,3 +416,15 @@ func TestGetReceiversHandler(t *testing.T) {
 		t.Errorf("Expected 200 OK, got %d", rec.Code)
 	}
 }
+func TestVerifySecurityAnswerHandler(t *testing.T) {
+	db, _ = setupTestDB()
+	_, _ = db.Exec("INSERT INTO users (username, security_question, security_answer) VALUES (?, ?, ?)", "testuser", "Pet?", "fluffy")
+
+	body := []byte(`{"username": "testuser", "securityAnswer": "fluffy"}`)
+
+	rec := performRequest(verifySecurityAnswerHandler, "POST", "/verify-security-answer", body)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+}
