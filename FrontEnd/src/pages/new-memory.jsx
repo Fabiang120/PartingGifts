@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
+import { UserHeader } from "@/components/user-header";
 
 const NewMemory = () => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -76,22 +77,16 @@ const NewMemory = () => {
 
   return (
     <div className="min-h-screen bg-blue-100 flex flex-col items-center">
-      <header className="flex items-center justify-between w-full px-8 py-4 bg-white shadow-md">
-        <img
-          src="https://i.postimg.cc/VsRBMLgn/pglogo.png"
-          alt="Parting Gifts Logo"
-          className="w-36"
-          onClick={() => router.push("/dashboard")}
-        />
-      </header>
+      <UserHeader/>
 
-      <main className="flex flex-col items-center w-full max-w-5xl p-8 bg-white rounded-lg shadow-md mt-8">
+      <main className="flex flex-col items-center w-full p-8 pt-20">
+        <div className="w-full max-w-3xl flex flex-col items-center p-8 bg-white rounded-lg shadow-md mt-8">
         <h1 className="text-xl font-bold text-black">Create a new memory!</h1>
         <p className="text-sm text-gray-600 mb-8">
           Record or upload a memory that will last forever.
         </p>
 
-        <div className="w-full md:w-1/2 flex flex-row space-x-4 items-center">
+        <div className="w-full px-6 flex flex-row space-x-4 items-center">
           <div
             className="flex flex-col items-center border-2 border-red-600 rounded-lg p-2 w-full bg-gray-50 cursor-pointer"
             onClick={() => router.push('/write-memory')}
@@ -150,7 +145,7 @@ const NewMemory = () => {
           </div>
         </div>
 
-        <div className="mt-4 w-full md:w-1/2">
+        <div className="mt-4 w-full px-6">
           <label htmlFor="emailMessage" className="text-sm text-gray-700">
             Custom Email Message (optional)
           </label>
@@ -173,6 +168,7 @@ const NewMemory = () => {
         >
           Upload Memory
         </button>
+        </div>
       </main>
     </div>
   );

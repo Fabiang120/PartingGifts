@@ -13,32 +13,23 @@ NavigationMenuTrigger,
 import { Menu, MoveRight, X } from "lucide-react";
 import Link from "next/link";
 
-export const Header = () => {
+export const UserHeader = () => {
 const navigationItems = [
     {
-    title: "Home",
-    href: "/",
+    title: "Dashboard",
+    href: "/dashboard",
     description: "",
     },
     {
-    title: "About Us",
-    description: "Where we come from and how we can help you.",
-    items: [
-        {
-        title: "Our Product",
-        href: "/learn-more",
-        },
-        {
-        title: "About Us",
-        href: "/about",
-        }
-    ],
+    title: "New Memory",
+    href: "/new-memory",
+    description: "",
     },
 ];
 
 const [isOpen, setOpen] = useState(false);
 return (
-    <header className="w-full z-40 bg-white fixed p-3">
+    <header className="w-full z-40 bg-white fixed p-3 shadow-md">
     <div className="container relative mx-auto min-h-20 flex gap-4 flex-row lg:grid lg:grid-cols-3 items-center">
         <div className="justify-start items-center gap-4 lg:flex hidden flex-row">
         <NavigationMenu className="flex justify-start items-start">
@@ -94,18 +85,9 @@ return (
         <img src="/PG-icon.png" alt="Parting Gifts Logo" className="h-12 object-contain" />
         </div>
         <div className="flex justify-end w-full gap-4">
-        <Button variant="ghost" className="hidden md:inline">
-            Book a demo
-        </Button>
-        <div className="border-r hidden md:inline"></div>
-        <Button asChild variant="outline">
-            <Link href="/login">
-            Sign in
-            </Link>
-        </Button>
         <Button asChild>
-            <Link href="/register">
-            Get started
+            <Link href="/personal-details">
+            Account Details
             </Link>
         </Button>
         </div>

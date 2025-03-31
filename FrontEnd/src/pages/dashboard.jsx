@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import SimpleGiftBox from "./SimpleGiftBox.jsx";
+import { UserHeader } from "@/components/user-header.jsx";
 
 const Dashboard = () => {
   const router = useRouter();
@@ -163,22 +164,9 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-blue-100">
       {/* Header */}
-      <header className="flex items-center justify-between px-8 py-4 bg-white shadow-md">
-        <img
-          src="https://i.postimg.cc/VsRBMLgn/pglogo.png"
-          alt="Parting Gifts Logo"
-          className="w-36"
-        />
-        <div>
-          <button
-            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-            onClick={handleUserProfileClick}
-          >
-            User Profile
-          </button>
-        </div> </header>
+      <UserHeader/>
       {/* Main Content */}
-      <main className="p-8 space-y-8">
+      <main className="p-8 pt-20 space-y-8">
         {isLoading ? (
           <div className="p-6 bg-white rounded-lg shadow-md flex justify-center">
             <p className="text-lg">Loading your gifts...</p>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
+import { UserHeader } from "@/components/user-header";
 
 export default function PersonalDetails() {
   const securityQuestions = [
@@ -141,10 +142,10 @@ export default function PersonalDetails() {
   };
 
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 bg-blue-100">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
+    <div className="min-h-screen bg-blue-100 flex flex-col items-center">
+      <UserHeader/>
+      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start mt-20">
         <form onSubmit={handleSubmit} className="bg-white rounded-xl p-10 text-black shadow-sm space-y-4 w-[500px]">
-          <img src="https://i.postimg.cc/VsRBMLgn/pglogo.png" className="w-40" alt="logo" />
           <p className="font-bold text-2xl">Personal Details</p>
 
           {/* Always display username from session storage if available */}
