@@ -398,3 +398,21 @@ func TestScheduleInactivityCheckHandler(t *testing.T) {
 		t.Errorf("Expected 200 OK, got %d", rec.Code)
 	}
 }
+func TestGetReceiversHandler(t *testing.T) {
+	db, _ = setupTestDB()
+
+	// Insert user
+	_, _ = db.Exec("INSERT INTO users (id, username) VALUES (?, ?)", 1, "testuser")
+
+	// Insert gift with receivers
+	_, _ = db.Exec("INSERT INTO gifts (user_id, receivers) VALUES (?, ?)", 1, "a@example.com,b@example.com")
+
+	req := httptest.NewRequest("GET", "/get-receivers?username=testuser", nil)
+	rec := httptest.NewRecorder()
+
+	GetReceiverHandler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+}
