@@ -428,3 +428,18 @@ func TestVerifySecurityAnswerHandler(t *testing.T) {
 		t.Errorf("Expected 200 OK, got %d", rec.Code)
 	}
 }
+func TestGetSecurityInfoHandler(t *testing.T) {
+	db, _ = setupTestDB()
+	_, _ = db.Exec("INSERT INTO users (username, primary_contact_email, security_question) VALUES (?, ?, ?)", "testuser", "test@example.com", "Your color?")
+
+	body := []byte(`{"email": "test@example.com"}`)
+	req := httptest.NewRequest("POST", "/get-security-info", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	rec := httptest.NewRecorder() // ✅ Missing recorder
+	getSecurityInfoHandler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+}
