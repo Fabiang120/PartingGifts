@@ -383,3 +383,18 @@ func TestGetMessageNotificationHandler(t *testing.T) {
 		t.Errorf("Expected 200 OK, got %d", rec.Code)
 	}
 }
+func TestScheduleInactivityCheckHandler(t *testing.T) {
+	db, _ = setupTestDB()
+	_, _ = db.Exec("INSERT INTO users (username, primary_contact_email) VALUES (?, ?)", "testuser", "test@example.com")
+
+	body := []byte(`{"username": "testuser", "customMessage": "Check for inactivity"}`)
+	req := httptest.NewRequest("POST", "/schedule-check", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	rec := httptest.NewRecorder()
+	scheduleInactivityCheckHandler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+}
