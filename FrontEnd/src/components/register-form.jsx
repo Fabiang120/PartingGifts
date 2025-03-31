@@ -72,8 +72,8 @@ export function RegisterForm({
     e.preventDefault();
     setMessage('');
     if (validate()) {
-      const res = await registerUser();
-      if (res.message) setMessage(res.message);
+      const res = await registerUser(router);
+      if (res && res.message) setMessage(res.message);
       else if (res) setErrors(res);
     }
   };

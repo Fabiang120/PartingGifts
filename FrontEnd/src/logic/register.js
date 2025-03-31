@@ -1,4 +1,4 @@
-export default async () => {
+export default async (router) => {
     try {
       // Create a payload matching your backend's expected fields:
       //   - username
@@ -22,8 +22,8 @@ export default async () => {
 
       if (!response.ok) throw new Error(result);
 
-      // On success, navigate to the home page.
-      router.push('/');
+      // On success, navigate to login
+      router.push('/login');
     } catch (err) {
         console.error(err.message);
       if (err.message.includes('UNIQUE constraint failed: users.username')) {

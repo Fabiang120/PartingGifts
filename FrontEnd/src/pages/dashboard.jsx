@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import SimpleGiftBox from "./SimpleGiftBox.jsx";
 import { UserHeader } from "@/components/user-header.jsx";
+import { Button } from "@/components/ui/button.jsx";
 
 const Dashboard = () => {
   const router = useRouter();
@@ -162,7 +163,7 @@ const Dashboard = () => {
   const normalGifts = gifts.filter((gift) => !gift.pending);
 
   return (
-    <div className="min-h-screen bg-blue-100">
+    <div className="min-h-screen bg-primary-foreground">
       {/* Header */}
       <UserHeader/>
       {/* Main Content */}
@@ -179,13 +180,10 @@ const Dashboard = () => {
               <p className="text-red-500">You have {pendingMessages} unsent messages</p>
               <p className="mt-2 text-black">Total messages created: {giftCount}</p>
               <p className="mt-2 text-black">Pending messages to schedule: {pendingMessages}</p>
-              <p className="mt-2 text-blue-500 hover:underline cursor-pointer">View Calendar</p>
-              <button
-                className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                onClick={handleNewMemoryClick}
-              >
+              <p className="mt-2 text-primary hover:underline cursor-pointer">View Calendar</p>
+              <Button className="mt-3" type="button" onClick={handleNewMemoryClick}>
                 New Memory
-              </button>
+              </Button>
             </div>
             {/* Previous Memories */}
             <div>
