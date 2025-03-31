@@ -338,3 +338,20 @@ func TestGetMessagesHandler(t *testing.T) {
 		t.Errorf("Expected 200 OK, got %d", rec.Code)
 	}
 }
+func TestGetPrivacyHandler(t *testing.T) {
+	db, _ = setupTestDB()
+
+	// Insert test user and associated privacy settings
+	_, _ = db.Exec("INSERT INTO users (id, username) VALUES (?, ?)", 1, "testuser")
+	_, _ = db.Exec("INSERT INTO privacy_settings (user_id, can_receive_messages, can_be_seen, can_receive_gifts) VALUES (?, ?, ?, ?)",
+		1, true, false, true)
+
+	req := httptest.NewRequest("GET", "/get-privacy?username=testuser", nil)
+	rec := httptest.NewRecorder()
+
+	getPrivacyHandler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+}
