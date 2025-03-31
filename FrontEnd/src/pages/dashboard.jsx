@@ -4,6 +4,9 @@ import { useRouter } from "next/router";
 import SimpleGiftBox from "./SimpleGiftBox.jsx";
 import { UserHeader } from "@/components/user-header.jsx";
 import { Button } from "@/components/ui/button.jsx";
+import MessageNotification from "../components/MessageNotification"; // ✅ Adjust path if needed
+
+
 
 const Dashboard = () => {
   const router = useRouter();
@@ -166,6 +169,11 @@ const Dashboard = () => {
     <div className="min-h-screen bg-primary-foreground">
       {/* Header */}
       <UserHeader/>
+
+      {/* Notifications */}
+      <div className="flex justify-end pr-8 mt-2">
+        <MessageNotification username={username} />
+      </div>
       {/* Main Content */}
       <main className="p-8 pt-20 space-y-8">
         {isLoading ? (
