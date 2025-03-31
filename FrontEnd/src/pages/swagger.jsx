@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import "swagger-ui-dist/swagger-ui.css"; // Default Swagger UI CSS
 
+export const config = { amp: false };
+
 // Dynamically import SwaggerUI with SSR disabled.
 const SwaggerUI = dynamic(
     () => import("swagger-ui-react").then((mod) => mod.default),
