@@ -29,8 +29,12 @@ func setupTestDB() (*sql.DB, error) {
         password TEXT,
         primary_contact_email TEXT,
         secondary_contact_emails TEXT,
+        security_question TEXT,
+        security_answer TEXT,
+        receivers TEXT,
         force_password_change BOOLEAN DEFAULT 0
     );
+
     CREATE TABLE IF NOT EXISTS gifts (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
@@ -39,8 +43,32 @@ func setupTestDB() (*sql.DB, error) {
         custom_message TEXT,
         receivers TEXT,
         upload_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-        scheduled_time DATETIME
+        scheduled_time DATETIME,
+        pending BOOLEAN DEFAULT 1,
+        FOREIGN KEY(user_id) REFERENCES users(id)
     );
+
+    CREATE TABLE IF NOT EXISTS privacy_settings (
+        user_id INTEGER PRIMARY KEY,
+        can_receive_messages BOOLEAN DEFAULT 1,
+        can_be_seen BOOLEAN DEFAULT 1,
+        can_receive_gifts BOOLEAN DEFAULT 1,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER,
+        receiver_id INTEGER,
+        subject TEXT,
+        content TEXT,
+        is_read BOOLEAN DEFAULT 0,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(sender_id) REFERENCES users(id),
+        FOREIGN KEY(receiver_id) REFERENCES users(id)
+    );
+
+
 `)
 	if err != nil {
 		return nil, err
@@ -292,5 +320,21 @@ func TestChangePasswordHandler(t *testing.T) {
 	}
 	if forceFlag != false {
 		t.Errorf("Expected force_password_change to be false, got %v", forceFlag)
+	}
+}
+
+func TestGetMessagesHandler(t *testing.T) {
+	db, _ = setupTestDB()
+	_, _ = db.Exec("INSERT INTO users (id, username) VALUES (?, ?)", 1, "testuser")
+	_, _ = db.Exec("INSERT INTO users (id, username) VALUES (?, ?)", 2, "sender")
+	encrypted, _ := encrypt("Hello!")
+	_, _ = db.Exec("INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, ?, ?)", 2, 1, encrypted)
+
+	req := httptest.NewRequest("GET", "/get-messages?username=testuser", nil)
+	rec := httptest.NewRecorder()
+	getMessagesHandler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
 	}
 }
