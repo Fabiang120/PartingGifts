@@ -443,3 +443,15 @@ func TestGetSecurityInfoHandler(t *testing.T) {
 		t.Errorf("Expected 200 OK, got %d", rec.Code)
 	}
 }
+func TestResetPasswordHandler(t *testing.T) {
+	db, _ = setupTestDB()
+	_, _ = db.Exec("INSERT INTO users (username, primary_contact_email, password) VALUES (?, ?, ?)", "testuser", "test@example.com", "oldpass")
+
+	body := []byte(`{"email": "test@example.com"}`)
+
+	rec := performRequest(resetPasswordHandler, "POST", "/reset-password", body)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+}
