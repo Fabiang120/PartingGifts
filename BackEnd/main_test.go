@@ -355,3 +355,21 @@ func TestGetPrivacyHandler(t *testing.T) {
 		t.Errorf("Expected 200 OK, got %d", rec.Code)
 	}
 }
+func TestUpdatePrivacyHandler(t *testing.T) {
+
+	db, _ = setupTestDB()
+	_, _ = db.Exec("INSERT INTO users (id, username) VALUES (?, ?)", 1, "testuser")
+
+	body := []byte(`{
+    "username": "testuser",
+    "canReceiveMessages": true,
+    "canBeSeen": false,
+    "canReceiveGifts": true
+    }`)
+
+	rec := performRequest(updatePrivacyHandler, "POST", "/update-privacy", body)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+}
