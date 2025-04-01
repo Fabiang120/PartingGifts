@@ -254,6 +254,39 @@ describe("NewMemory Component", () => {
   });
 });
 
+describe("Login Component", () => {
+  it("validates login credentials and shows error message", async () => {
+    useRouter.mockReturnValue({ query: {}, push: vi.fn() });
+
+    // Mock fetch to return an error response for login
+    vi.stubGlobal("fetch", vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ error: "Invalid credentials" })
+      })
+    ));
+
+    await act(async () => {
+      render(<LoginPage />);
+    });
+
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText("user"), {
+        target: { value: "testUser" },
+      });
+      fireEvent.change(screen.getByLabelText("Password"), {
+        target: { value: "wrongpassword" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Login" }));
+    });
+
+    // Check for the actual error message shown in the UI
+    await waitFor(() =>
+      expect(screen.getByText("There was a connection error!")).toBeInTheDocument()
+    );
+  });
+});
 describe("Register Component", () => {
   it("renders register form with required fields", async () => {
     await act(async () => {
