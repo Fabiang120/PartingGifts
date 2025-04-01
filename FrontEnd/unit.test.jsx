@@ -191,22 +191,16 @@ describe("ForceChange Component", () => {
     expect(screen.getByText(/Passwords do not match/)).toBeInTheDocument();
   });
 });
-
 describe("ForgotPassword Component", () => {
   it("handles email input and reset request", async () => {
-    await act(async () => {
-      render(<ForgotPassword />);
+    render(<ForgotPassword />);
+    fireEvent.change(screen.getByPlaceholderText(/name@email.com/), {
+      target: { value: "test@example.com" }
     });
-    await act(async () => {
-      fireEvent.change(screen.getByPlaceholderText(/name@email.com/), {
-        target: { value: "test@example.com" },
-      });
-      fireEvent.click(screen.getByRole("button", { name: /Reset Password/i }));
-    });
+    fireEvent.click(screen.getByRole("button", { name: /Reset Password/i }));
+
     await waitFor(() =>
-      expect(
-        screen.getByText(/Something went wrong\. Please try again later\./i)
-      ).toBeInTheDocument()
+      expect(screen.getByText(/Failed to reset password\. Please try again\./i)).toBeInTheDocument()
     );
   });
 });
@@ -276,6 +270,19 @@ describe("Register Component", () => {
 
     // Verify the register button exists but don't click it
     expect(screen.getByRole("button", { name: /Register/i })).toBeInTheDocument();
+  });
+});
+describe("ForgotPassword Component", () => {
+  it("handles email input and reset request", async () => {
+    render(<ForgotPassword />);
+    fireEvent.change(screen.getByPlaceholderText("name@email.com"), {
+      target: { value: "test@example.com" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Reset Password/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Failed to reset password\. Please try again\./i)).toBeInTheDocument()
+    );
   });
 });
 
