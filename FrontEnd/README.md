@@ -41,3 +41,4 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/b
 
 Dependencies
 npm install lucide-react
+npm install date-fns

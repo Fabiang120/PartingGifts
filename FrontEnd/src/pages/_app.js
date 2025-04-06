@@ -1,6 +1,6 @@
 // pages/_app.js
 import React from "react";
-import { AuthProvider } from "./AuthContext"; // adjust the path as needed
+import { AuthProvider } from "./AuthContext"; 
 import "../styles/globals.css";
 import "./swagger-overrides.css";
 
