@@ -45,6 +45,7 @@ type Gift struct {
 	UploadTime    string `json:"upload_time"`
 	Pending       bool   `json:"pending"`
 	FileData      []byte `json:"-"`
+	ScheduledRelease string `json:"scheduled_release,omitempty"` // Using consistent naming format (camelCase for JSON)
 }
 
 var db *sql.DB
@@ -144,7 +145,8 @@ func main() {
 		pending BOOLEAN DEFAULT 1,
         receivers TEXT,  -- Add this column
         upload_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id)
+        scheduled_release DATETIME, 
+		FOREIGN KEY(user_id) REFERENCES users(id)
     );
     `
 	if _, err := db.Exec(createGiftsTableSQL); err != nil {
@@ -193,6 +195,7 @@ func main() {
 	http.HandleFunc("/get-privacy", getPrivacyHandler)
 	http.HandleFunc("/update-privacy", updatePrivacyHandler)
 	http.HandleFunc("/notifications", getMessageNotificationHandler)
+	http.HandleFunc("/gift-calendar", giftCalendarHandler)
 
 	fmt.Println("Server listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
@@ -1297,7 +1300,7 @@ func setupReceiversHandler(w http.ResponseWriter, r *http.Request) {
 		GiftID        int    `json:"giftId"`
 		Receivers     string `json:"receivers"`
 		CustomMessage string `json:"customMessage"`
-		ScheduledTime string `json:"scheduledTime"` // Expected in RFC3339 format (or empty)
+		ScheduledTime string `json:"scheduledTime"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -1316,12 +1319,42 @@ func setupReceiversHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update the gift record with the receivers.
-	if _, err := db.Exec("UPDATE gifts SET receivers = ? WHERE id = ?", req.Receivers, req.GiftID); err != nil {
-		log.Printf("Error updating receivers: %v", err)
-		http.Error(w, "Failed to update receivers", http.StatusInternalServerError)
-		return
+	// Parse the scheduled time for database storage 
+	var scheduledTimeSQL sql.NullString
+
+	if req.ScheduledTime != ""{
+		scheduledTime, err := time.Parse(time.RFC3339, req.ScheduledTime)
+		if err !=nil {
+			scheduledTime, err = time.Parse("2006-01-02T15:04", req.ScheduledTime)
+		}
+		if err == nil {
+        // If parsing succeeded with either format, store in database format
+        // SQLite typically expects time in this format for DATETIME columns
+        scheduledTimeSQL.String = scheduledTime.Format("2006-01-02 15:04:05")
+        scheduledTimeSQL.Valid = true
+        log.Printf("Storing scheduled time %s for gift %d", scheduledTimeSQL.String, req.GiftID)
+    	} else {
+        	log.Printf("Invalid scheduled time format: %s, not storing in database", req.ScheduledTime)
+    	}
 	}
+
+	// Update the gift record with the receivers and possibly scheduled_release
+	var updateErr error
+	if scheduledTimeSQL.Valid{
+		_, updateErr = db.Exec(
+			"UPDATE gifts SET receivers = ?, scheduled_release = ? WHERE id = ?",
+			req.Receivers, scheduledTimeSQL.String, req.GiftID)
+	}else{
+		_, updateErr = db.Exec(
+			"UPDATE gifts SET receivers = ? WHERE id = ?",
+			req.Receivers, req.GiftID)
+	}
+	if updateErr != nil {
+    	log.Printf("Error updating gift: %v", updateErr)
+    	http.Error(w, "Failed to update gift", http.StatusInternalServerError)
+    	return
+	}
+	
 
 	// Retrieve the custom message stored in the gift record.
 	var storedCustomMessage string
@@ -1338,14 +1371,20 @@ func setupReceiversHandler(w http.ResponseWriter, r *http.Request) {
 		// If a scheduled time is provided, parse it and wait until that time;
 		// otherwise, wait a default of 1 minute.
 		var delay time.Duration = 1 * time.Minute
+
 		if req.ScheduledTime != "" {
-			if scheduledTime, err := time.Parse(time.RFC3339, req.ScheduledTime); err == nil {
+			scheduledTime, err := time.Parse(time.RFC3339, req.ScheduledTime)
+			if err != nil{
+				scheduledTime, err = time.Parse("2006-01-02T15:04", req.ScheduledTime)
+				if err != nil {
+                	log.Printf("Error parsing scheduled time '%s' for gift %d: %v", req.ScheduledTime, req.GiftID, err)
+            	}
+			}
+			if err ==nil{
 				computedDelay := scheduledTime.Sub(time.Now())
-				if computedDelay > 0 {
+				if computedDelay >0{
 					delay = computedDelay
 				}
-			} else {
-				log.Printf("Error parsing scheduled time for gift %d: %v", req.GiftID, err)
 			}
 		}
 		log.Printf("Waiting %v before sending gift email for gift %d", delay, req.GiftID)
@@ -1416,9 +1455,6 @@ func sendGiftEmailToReceivers(fileName string, fileData []byte, customMessage, r
 		_, err := w.Write(fileData)
 		return err
 	}))
-
-	// Delay the sending of the email by 1 minute.
-	time.Sleep(1 * time.Minute)
 
 	d := gomail.NewDialer(smtpHost, smtpPort, senderEmail, senderPassword)
 	if err := d.DialAndSend(m); err != nil {
@@ -1647,4 +1683,103 @@ func sendCheckEmail(to, subject, body string) error {
 	m.SetBody("text/plain", body)
 	d := gomail.NewDialer(smtpHost, smtpPort, senderEmail, senderPassword)
 	return d.DialAndSend(m)
+}
+
+func giftCalendarHandler(w http.ResponseWriter, r *http.Request) {
+    enableCors(&w)
+
+    if r.Method == http.MethodOptions {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+    if r.Method != http.MethodGet {
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return
+    }
+
+    username := r.URL.Query().Get("username")
+    
+	if username == "" {
+        http.Error(w, "Username is required", http.StatusBadRequest)
+        return
+    }
+
+    var userID int
+    err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
+    if err != nil {
+        http.Error(w, "User not found", http.StatusNotFound)
+        return
+    }
+
+    // Get all gifts with scheduled release dates
+    rows, err := db.Query(`
+        SELECT id, file_name, custom_message, scheduled_release, pending, receivers
+        FROM gifts 
+        WHERE user_id = ? 
+        ORDER BY scheduled_release ASC
+    `, userID)
+    if err != nil {
+        http.Error(w, "Error retrieving gift calendar", http.StatusInternalServerError)
+        return
+    }
+    defer rows.Close()
+
+    type CalendarEvent struct {
+        ID          int    `json:"id"`
+        Title       string `json:"title"`
+        ReleaseDate string `json:"releaseDate"`
+        Message     string `json:"message"`
+        IsPending   bool   `json:"isPending"`
+        Receivers   string `json:"receivers"`
+    }
+
+    events := make([]CalendarEvent, 0)
+	rowCount := 0
+    for rows.Next() {
+		rowCount++
+        var fileName, message, releaseDate sql.NullString
+        var receivers sql.NullString
+        var pending bool
+        var id int
+
+        if err := rows.Scan(&id, &fileName, &message, &releaseDate, &pending, &receivers); err != nil {
+            continue
+        }
+
+        title := "Gift"
+        if fileName.Valid && fileName.String != "" {
+            title = fileName.String
+        }
+
+        event := CalendarEvent{
+            ID:        id,
+            Title:     title,
+            IsPending: pending,
+        }
+
+        if message.Valid {
+            event.Message = message.String
+        }
+
+        if releaseDate.Valid {
+            event.ReleaseDate = releaseDate.String
+        }
+
+        if receivers.Valid {
+            event.Receivers = receivers.String
+        }
+
+        events = append(events, event)
+    }
+	if err = rows.Err(); err != nil{
+		log.Printf("Error after row iteration: %v", err)
+		http.Error(w,"Error processing gift data", http.StatusInternalServerError)
+		return
+	}
+
+    w.Header().Set("Content-Type", "application/json")
+	if err:= json.NewEncoder(w).Encode(events); err !=nil{
+		http.Error(w, "Error generating response", http.StatusInternalServerError)
+		return
+	}
 }

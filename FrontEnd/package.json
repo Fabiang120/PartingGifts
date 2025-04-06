@@ -28,6 +28,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cookie": "^1.0.2",
+    "date-fns": "^4.1.0",
     "formdata-node": "^6.0.3",
     "gsap": "^3.11.5",
     "html-to-pdfmake": "^2.5.23",
