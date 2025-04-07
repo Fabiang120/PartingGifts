@@ -205,20 +205,11 @@ func main() {
 
 func getMessageNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method != http.MethodGet {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handleGet(w,r){
 		return
 	}
-
-	username := r.URL.Query().Get("username")
-	if username == "" {
-		http.Error(w, "Username is required", http.StatusBadRequest)
-		return
-	}
-
-	var userID int
-	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID); err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+	userID, boolval := QueryUser(w, r)
+	if !boolval{
 		return
 	}
 
@@ -238,19 +229,11 @@ func getMessageNotificationHandler(w http.ResponseWriter, r *http.Request) {
 
 func getPrivacyHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method != http.MethodGet {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handleGet(w,r){
 		return
 	}
-	username := r.URL.Query().Get("username")
-	if username == "" {
-		http.Error(w, "Username is required", http.StatusBadRequest)
-		return
-	}
-
-	var userID int
-	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID); err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+	userID, boolval := QueryUser(w, r)
+	if !boolval{
 		return
 	}
 
@@ -277,8 +260,7 @@ func getPrivacyHandler(w http.ResponseWriter, r *http.Request) {
 
 func updatePrivacyHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handlePost(w,r){
 		return
 	}
 
@@ -293,9 +275,8 @@ func updatePrivacyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var userID int
-	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", req.Username).Scan(&userID); err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+	userID, boolval := QueryUser(w, r)
+	if !boolval{
 		return
 	}
 
@@ -318,11 +299,9 @@ func updatePrivacyHandler(w http.ResponseWriter, r *http.Request) {
 
 func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handlePost(w,r){
 		return
 	}
-
 	var req struct {
 		Sender   string `json:"sender"`
 		Receiver string `json:"receiver"`
@@ -370,20 +349,11 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 
 func getMessagesHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method != http.MethodGet {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handleGet(w,r){
 		return
 	}
-
-	username := r.URL.Query().Get("username")
-	if username == "" {
-		http.Error(w, "Username required", http.StatusBadRequest)
-		return
-	}
-
-	var userID int
-	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID); err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+	userID, boolval := QueryUser(w, r)
+	if !boolval{
 		return
 	}
 
@@ -454,12 +424,10 @@ func enableCors(w *http.ResponseWriter) {
 
 func createAccountHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	if handleOptions(w,r){
 		return
 	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handlePost(w,r){
 		return
 	}
 
@@ -509,33 +477,20 @@ func createAccountHandler(w http.ResponseWriter, r *http.Request) {
 // Endpoint to return the count of gifts for a given username.
 func giftCountHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	if handleOptions(w,r){
 		return
 	}
-	if r.Method != http.MethodGet {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handleGet(w,r){
 		return
 	}
-
-	// Get the username from the query parameters.
-	username := r.URL.Query().Get("username")
-	if username == "" {
-		http.Error(w, "Username is required", http.StatusBadRequest)
-		return
-	}
-
-	// Retrieve the user ID for the provided username.
-	var userID int
-	err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+	userID, boolval := QueryUser(w, r)
+	if !boolval{
 		return
 	}
 
 	// Count the number of gifts for this user.
 	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM gifts WHERE user_id = ?", userID).Scan(&count)
+	err := db.QueryRow("SELECT COUNT(*) FROM gifts WHERE user_id = ?", userID).Scan(&count)
 	if err != nil {
 		http.Error(w, "Error retrieving gift count", http.StatusInternalServerError)
 		return
@@ -548,29 +503,19 @@ func giftCountHandler(w http.ResponseWriter, r *http.Request) {
 
 func pendingGiftsHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	if handleOptions(w,r){
 		return
 	}
-	if r.Method != http.MethodGet {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handleGet(w,r){
 		return
 	}
-	// Extract username and retrieve the userID.
-	username := r.URL.Query().Get("username")
-	if username == "" {
-		http.Error(w, "Username is required", http.StatusBadRequest)
-		return
-	}
-	var userID int
-	err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+	userID, boolval := QueryUser(w, r)
+	if !boolval{
 		return
 	}
 	// Count pending gifts using the pending boolean.
 	var pendingCount int
-	err = db.QueryRow("SELECT COUNT(*) FROM gifts WHERE user_id = ? AND pending = 1", userID).Scan(&pendingCount)
+	err := db.QueryRow("SELECT COUNT(*) FROM gifts WHERE user_id = ? AND pending = 1", userID).Scan(&pendingCount)
 	if err != nil {
 		log.Printf("Error retrieving pending messages count: %v", err)
 		http.Error(w, "Error retrieving pending messages count", http.StatusInternalServerError)
@@ -583,8 +528,7 @@ func pendingGiftsHandler(w http.ResponseWriter, r *http.Request) {
 // downloadGiftHandler serves the gift file for inline viewing or download.
 func downloadGiftHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method != http.MethodGet {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handleGet(w,r){
 		return
 	}
 
@@ -639,8 +583,7 @@ func downloadGiftHandler(w http.ResponseWriter, r *http.Request) {
 
 func getGiftsHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	if handleOptions(w,r){
 		return
 	}
 	if r.Method != http.MethodGet {
@@ -705,8 +648,7 @@ func isValidPassword(password string) bool {
 
 func personalDetailsHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	if handleOptions(w,r){
 		return
 	}
 
@@ -844,12 +786,10 @@ func personalDetailsHandler(w http.ResponseWriter, r *http.Request) {
 
 func verifySecurityAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	if handleOptions(w,r){
 		return
 	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handlePost(w,r){
 		return
 	}
 
@@ -921,15 +861,12 @@ func verifySecurityAnswerHandler(w http.ResponseWriter, r *http.Request) {
 
 func getSecurityInfoHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	if handleOptions(w,r){
 		return
 	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handlePost(w,r){
 		return
 	}
-
 	var req struct {
 		Email string `json:"email"`
 	}
@@ -973,12 +910,10 @@ func getSecurityInfoHandler(w http.ResponseWriter, r *http.Request) {
 
 func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	if handleOptions(w,r){
 		return
 	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handlePost(w,r){
 		return
 	}
 	var req struct {
@@ -1043,8 +978,7 @@ func resetPasswordHandler(w http.ResponseWriter, r *http.Request) {
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	if handleOptions(w,r){
 		return
 	}
 	if r.Method != http.MethodPost {
@@ -1103,15 +1037,12 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 func changePasswordHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	if handleOptions(w,r){
 		return
 	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handlePost(w,r){
 		return
 	}
-
 	var req struct {
 		Username    string `json:"username"`
 		NewPassword string `json:"newPassword"`
@@ -1158,12 +1089,10 @@ func changePasswordHandler(w http.ResponseWriter, r *http.Request) {
 
 func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	if handleOptions(w,r){
 		return
 	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handlePost(w,r){
 		return
 	}
 
@@ -1173,19 +1102,14 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get username and validate
-	// Get username and validate
-	username := r.FormValue("username")
-	var userID int
-	err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+	userID, boolval := QueryUser(w, r)
+	if !boolval{
 		return
 	}
 
 	// Check if user allows receiving gifts
 	var canReceiveGifts bool = true // default to true
-	err = db.QueryRow("SELECT can_receive_gifts FROM privacy_settings WHERE user_id = ?", userID).Scan(&canReceiveGifts)
+	err := db.QueryRow("SELECT can_receive_gifts FROM privacy_settings WHERE user_id = ?", userID).Scan(&canReceiveGifts)
 	if err == nil && !canReceiveGifts {
 		http.Error(w, "User has disabled gift receiving", http.StatusForbidden)
 		return
@@ -1238,9 +1162,7 @@ func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
 
 func stopPendingGiftHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		// Handle preflight request
-		w.WriteHeader(http.StatusOK)
+	if handleOptions(w,r){
 		return
 	}
 	if r.Method != http.MethodDelete {
@@ -1286,15 +1208,12 @@ func stopPendingGiftHandler(w http.ResponseWriter, r *http.Request) {
 // Setting up new receiver logic //
 func setupReceiversHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	if handleOptions(w,r){
 		return
 	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handlePost(w,r){
 		return
 	}
-
 	// Extend the request payload to include an optional scheduledTime.
 	var req struct {
 		GiftID        int    `json:"giftId"`
@@ -1466,8 +1385,7 @@ func sendGiftEmailToReceivers(fileName string, fileData []byte, customMessage, r
 
 func GetReceiverHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	if handleOptions(w,r){
 		return
 	}
 	if r.Method != http.MethodGet {
@@ -1484,6 +1402,7 @@ func GetReceiverHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Username is required"})
 		return
 	}
+	
 
 	// First, retrieve the user ID based on the username.
 	var userID int
@@ -1535,15 +1454,13 @@ func GetReceiverHandler(w http.ResponseWriter, r *http.Request) {
 
 func scheduleInactivityCheckHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
+	if handleOptions(w,r){
 		return
 	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	if !handlePost(w,r){
 		return
 	}
-	// Expect payload with username and customMessage.
+		// Expect payload with username and customMessage.
 	var req struct {
 		Username      string `json:"username"`
 		CustomMessage string `json:"customMessage"`
@@ -1688,28 +1605,16 @@ func sendCheckEmail(to, subject, body string) error {
 func giftCalendarHandler(w http.ResponseWriter, r *http.Request) {
     enableCors(&w)
 
-    if r.Method == http.MethodOptions {
-        w.WriteHeader(http.StatusOK)
-        return
-    }
-    if r.Method != http.MethodGet {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-        return
-    }
-
-    username := r.URL.Query().Get("username")
-    
-	if username == "" {
-        http.Error(w, "Username is required", http.StatusBadRequest)
-        return
-    }
-
-    var userID int
-    err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
-    if err != nil {
-        http.Error(w, "User not found", http.StatusNotFound)
-        return
-    }
+    if handleOptions(w,r){
+		return
+	}
+    if !handleGet(w,r){
+		return
+	}
+    userID, boolval := QueryUser(w, r)
+	if !boolval{
+		return
+	}
 
     // Get all gifts with scheduled release dates
     rows, err := db.Query(`
@@ -1782,4 +1687,43 @@ func giftCalendarHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error generating response", http.StatusInternalServerError)
 		return
 	}
+}
+
+func handleOptions(w http.ResponseWriter, r *http.Request) bool{
+	if r.Method == http.MethodOptions{
+		w.WriteHeader(http.StatusOK)
+		return true
+	}
+	return false
+}
+
+func handleGet(w http.ResponseWriter, r *http.Request) bool{
+	if r.Method != http.MethodGet{
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return false
+	}
+	return true
+}
+
+func handlePost(w http.ResponseWriter, r *http.Request) bool{
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return false
+	}
+	return true
+}
+
+func QueryUser (w http.ResponseWriter, r *http.Request) (int,bool){
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		http.Error(w, "Username is required", http.StatusBadRequest)
+		return 0, false
+	}
+
+	var userID int
+	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID); err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return 0, false
+	}
+	return userID, true
 }
