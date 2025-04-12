@@ -370,7 +370,7 @@ func getMessagesHandler(w http.ResponseWriter, r *http.Request) {
 		Timestamp string `json:"timestamp"`
 	}
 	var messages []Message
-
+	
 	for rows.Next() {
 		var senderID int
 		var encryptedContent, timestamp string
