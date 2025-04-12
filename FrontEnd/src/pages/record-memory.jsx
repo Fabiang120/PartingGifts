@@ -15,9 +15,6 @@ const RecordMemory = () => {
 
   useEffect(() => {
     setIsClient(true);
-    if (typeof window !== "undefined") {
-      setUsername(sessionStorage.getItem("username") || "");
-    }
   }, []);
 
   const startVideoStream = async () => {
@@ -84,17 +81,33 @@ const RecordMemory = () => {
       alert("No recorded video available!");
       return;
     }
-    if (!username) {
-      alert("Username is not defined. Please log in again.");
+
+    let currentUsername = username;
+    console.log("Initial username state:", currentUsername); // Debugging line
+
+    if (!currentUsername) {
+      const storedUsername = sessionStorage.getItem("username");
+      console.log("Stored username in sessionStorage:", storedUsername); // Debugging line
+
+      if (storedUsername) {
+        currentUsername = storedUsername;
+        setUsername(storedUsername); // Update the state with the retrieved username
+      }
+    }
+
+    console.log("Final username used for upload:", currentUsername); // Debugging line
+
+    if (!currentUsername) {
+      alert("Username is required. Please log in again.");
       return;
     }
 
     const formData = new FormData();
-    formData.append("username", username);
+    formData.append("username", currentUsername);
     formData.append("file", videoBlob, "memory.mp4");
 
     try {
-      const response = await fetch("http://localhost:8080/upload-gift", {
+      const response = await fetch(`http://localhost:8080/upload-gift?username=${currentUsername}`, {
         method: "POST",
         body: formData,
       });
