@@ -1,30 +1,175 @@
-# PartingGifts
+Parting Gifts
 
-**Description:**  
-Parting Gifts is a heartfelt platform designed to preserve and share love, wisdom, and memories.Our mission is to help individuals leave meaningful video messages for their loved ones, creating a lasting connection that transcends time and space.More than just a website, it ensures your voice and emotions are always remembered.  
+A full-stack web application for sharing scheduled digital gifts with loved ones. This project includes a Go-based backend and a Next.js-based frontend, working together to allow users to upload digital gifts, manage delivery schedules, and send secure email notifications.
+
+Overview
+
+Users can:
+Create accounts and manage credentials securely
+Upload digital gifts (files) to the platform
+Assign gifts to recipients with scheduled delivery
+Receive email notifications upon delivery
+
+Prerequisites
 
 
-Group Members  
+Backend Requirements:
 
-- **Frontend:**  
-  - Devin Wylde  
-  - Sanya Chaturvedi  
+Go (latest version recommended)
 
-- **Backend:**  
-  - Fabian Gracia  
-  - Sahil Dhanani  
+SQLite3
 
-Videos for Sprint 1
-Frontend:  https://youtu.be/VSiEAaJwyt8?si=d7buibnv_5SefMQW
-Backend:  https://youtu.be/drErqTQn3XM
+Frontend Requirements:
 
-Videos for Sprint 2
-Video 1: 
-https://www.youtube.com/watch?v=ZfgtXeQmehQ&ab_channel=Fabian
+Node.js & npm (v18+ recommended)
 
-Video 2:
-https://www.youtube.com/watch?v=s2nU40OTkeY&ab_channel=Fabian
 
-Videos for Sprint 3
-https://youtu.be/nWV9nsUX-U4
-https://youtu.be/P36uWemHHO0
+Backend Setup
+
+1. Clone the repository
+    git clone https://github.com/yourusername/parting-gifts.git
+    cd parting-gifts/backend
+2. Install Go Dependencies and Go Mail
+    go mod tidy
+    go get gopkg.in/gomail.v2
+3.  Configure SMTP credentials
+    Open main.go and set the following:
+    smtpHost := "smtp.gmail.com"
+    smtpPort := 587
+    senderEmail := "your-email@gmail.com"
+    senderPassword := "your-app-password"
+    Ensure you allow App Passwords or enable less secure app access for Gmail.
+4.  Run the backend server
+    go run main.go
+    Access at: http://localhost:8080
+
+    
+Frontend Setup
+1. Go to directory
+    cd ../frontend
+2. Install dependecies
+    npm install
+3.  Start the development server
+    npm run dev
+    The frontend runs on: http://localhost:3000
+
+Frontend Dependencies
+
+See the full list of dependencies and installation command below:
+
+Installation
+npm install \
+@babel/runtime \
+@radix-ui/react-checkbox \
+@radix-ui/react-label \
+@radix-ui/react-navigation-menu \
+@radix-ui/react-slot \
+@react-pdf/renderer \
+@react-three/drei \
+@react-three/fiber \
+@scarf/scarf \
+@tiptap/extension-color \
+@tiptap/extension-highlight \
+@tiptap/extension-text-style \
+@tiptap/extension-underline \
+@tiptap/react \
+@tiptap/starter-kit \
+class-variance-authority \
+clsx \
+cookie \
+date-fns \
+formdata-node \
+gsap \
+html-to-pdfmake \
+jspdf \
+lucide-react \
+next \
+qs \
+react \
+react-dom \
+react-icons \
+swagger-ui-dist \
+swagger-ui-react \
+tailwind-merge \
+tailwindcss-animate \
+three \
+tiptap \
+tiptap-extension-font-size \
+traverse \
+-D \
+@babel/code-frame \
+@babel/core \
+@babel/helper-validator-identifier \
+@babel/preset-env \
+@babel/preset-react \
+@testing-library/dom \
+@testing-library/jest-dom \
+@testing-library/react \
+@testing-library/user-event \
+@types/aria-query \
+@types/debug \
+@types/estree \
+@types/node \
+@types/react \
+@types/react-dom \
+@vitejs/plugin-react \
+@vitest/browser \
+@vitest/expect \
+@vitest/mocker \
+@vitest/pretty-format \
+@vitest/runner \
+@vitest/snapshot \
+@vitest/spy \
+@vitest/ui \
+@vitest/utils \
+ansi-regex \
+ansi-styles \
+aria-query \
+assertion-error \
+autop \
+autoprefixer \
+babel-loader \
+cac \
+chai \
+check-error \
+chalk \
+color-convert \
+color-name \
+debug \
+deep-eql \
+dequal \
+dom-accessibility-api \
+es-module-lexer \
+esbuild \
+estree-walker \
+expect-type \
+fsevents \
+has-flag \
+js-tokens \
+jsdom \
+loupe \
+lz-string \
+magic-string \
+ms \
+nanoid \
+pathe \
+pathval \
+picocolors \
+postcss \
+react-is \
+regenerator-runtime \
+rollup \
+scheduler \
+siginfo \
+source-map-js \
+stackback \
+std-env \
+tinybench \
+tinyexec \
+tinypool \
+tinyrainbow \
+tinyspy \
+vite \
+vite-node \
+vitest \
+why-is-node-running

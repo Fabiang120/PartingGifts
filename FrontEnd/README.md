@@ -40,5 +40,236 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
 
 Dependencies
-npm install lucide-react
-npm install date-fns
+
+@babel/code-frame  
+@babel/core  
+@babel/helper-validator-identifier  
+@babel/preset-env  
+@babel/preset-react  
+@babel/runtime  
+@radix-ui/react-checkbox  
+@radix-ui/react-label  
+@radix-ui/react-navigation-menu  
+@radix-ui/react-slot  
+@react-pdf/renderer  
+@react-three/drei  
+@react-three/fiber  
+@rollup/rollup-*  
+@scarf/scarf  
+@testing-library/dom  
+@testing-library/jest-dom  
+@testing-library/react  
+@testing-library/user-event  
+@tiptap/extension-color  
+@tiptap/extension-highlight  
+@tiptap/extension-text-style  
+@tiptap/extension-underline  
+@tiptap/react  
+@tiptap/starter-kit  
+@types/aria-query  
+@types/debug  
+@types/estree  
+@types/node  
+@types/react  
+@types/react-dom  
+@vitejs/plugin-react  
+@vitest/browser  
+@vitest/expect  
+@vitest/mocker  
+@vitest/pretty-format  
+@vitest/runner  
+@vitest/snapshot  
+@vitest/spy  
+@vitest/ui  
+@vitest/utils  
+ansi-regex  
+ansi-styles  
+aria-query  
+assertion-error  
+autop  
+autoprefixer  
+babel-loader  
+cac  
+chai  
+check-error  
+class-variance-authority  
+chalk  
+clsx  
+color-convert  
+color-name  
+cookie  
+date-fns  
+debug  
+deep-eql  
+dequal  
+dom-accessibility-api  
+es-module-lexer  
+esbuild  
+estree-walker  
+expect-type  
+formdata-node  
+fsevents  
+gsap  
+has-flag  
+html-to-pdfmake  
+js-tokens  
+jsdom  
+jspdf  
+lucide-react  
+loupe  
+lz-string  
+magic-string  
+ms  
+nanoid  
+next  
+pathe  
+pathval  
+picocolors  
+postcss  
+qs  
+react  
+react-dom  
+react-icons  
+react-is  
+regenerator-runtime  
+rollup  
+scheduler  
+siginfo  
+source-map-js  
+stackback  
+std-env  
+swagger-ui-dist  
+swagger-ui-react  
+tailwind-merge  
+tailwindcss  
+tailwindcss-animate  
+three  
+tiptap  
+tiptap-extension-font-size  
+tinybench  
+tinyexec  
+tinypool  
+tinyrainbow  
+tinyspy  
+traverse  
+vite  
+vite-node  
+vitest  
+why-is-node-running
+
+Dependencies Installation Commands
+npm install \
+@babel/runtime \
+@radix-ui/react-checkbox \
+@radix-ui/react-label \
+@radix-ui/react-navigation-menu \
+@radix-ui/react-slot \
+@react-pdf/renderer \
+@react-three/drei \
+@react-three/fiber \
+@scarf/scarf \
+@tiptap/extension-color \
+@tiptap/extension-highlight \
+@tiptap/extension-text-style \
+@tiptap/extension-underline \
+@tiptap/react \
+@tiptap/starter-kit \
+class-variance-authority \
+clsx \
+cookie \
+date-fns \
+formdata-node \
+gsap \
+html-to-pdfmake \
+jspdf \
+lucide-react \
+next \
+qs \
+react \
+react-dom \
+react-icons \
+swagger-ui-dist \
+swagger-ui-react \
+tailwind-merge \
+tailwindcss-animate \
+three \
+tiptap \
+tiptap-extension-font-size \
+traverse \
+-D \
+@babel/code-frame \
+@babel/core \
+@babel/helper-validator-identifier \
+@babel/preset-env \
+@babel/preset-react \
+@testing-library/dom \
+@testing-library/jest-dom \
+@testing-library/react \
+@testing-library/user-event \
+@types/aria-query \
+@types/debug \
+@types/estree \
+@types/node \
+@types/react \
+@types/react-dom \
+@vitejs/plugin-react \
+@vitest/browser \
+@vitest/expect \
+@vitest/mocker \
+@vitest/pretty-format \
+@vitest/runner \
+@vitest/snapshot \
+@vitest/spy \
+@vitest/ui \
+@vitest/utils \
+ansi-regex \
+ansi-styles \
+aria-query \
+assertion-error \
+autop \
+autoprefixer \
+babel-loader \
+cac \
+chai \
+check-error \
+chalk \
+color-convert \
+color-name \
+debug \
+deep-eql \
+dequal \
+dom-accessibility-api \
+es-module-lexer \
+esbuild \
+estree-walker \
+expect-type \
+fsevents \
+has-flag \
+js-tokens \
+jsdom \
+loupe \
+lz-string \
+magic-string \
+ms \
+nanoid \
+pathe \
+pathval \
+picocolors \
+postcss \
+react-is \
+regenerator-runtime \
+rollup \
+scheduler \
+siginfo \
+source-map-js \
+stackback \
+std-env \
+tinybench \
+tinyexec \
+tinypool \
+tinyrainbow \
+tinyspy \
+vite \
+vite-node \
+vitest \
+why-is-node-running
