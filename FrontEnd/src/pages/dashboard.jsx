@@ -38,15 +38,20 @@ const GiftCalendar = ({ username, onClose }) => {
         data.forEach(event => {
           if (!event.releaseDate) return;
 
-          // Parse the date from the server's format (which might be in UTC)
-          const eventDate = new Date(event.releaseDate);
+          // Parse the date from the server's format and add 4 hours for EST
+          const eventDateUTC = new Date(event.releaseDate);
 
-          // Format the date in YYYY-MM-DD format in the local timezone
-          // Adding a day to account for server-client timezone differences
-          const adjustedDate = new Date(eventDate);
-          const dateStr = adjustedDate.toISOString().split('T')[0];
+          // Add 4 hours to adjust from UTC to EST
+          const eventDateEST = new Date(eventDateUTC);
+          eventDateEST.setHours(eventDateEST.getHours() + 4);
 
-          console.log(`Processing event: ${event.title || event.file_name}, Date: ${dateStr}`);
+          // Store the adjusted date in the event
+          event.adjustedReleaseDate = eventDateEST;
+
+          // Format the date in YYYY-MM-DD format for grouping
+          const dateStr = eventDateEST.toISOString().split('T')[0];
+
+          console.log(`Processing event: ${event.title || event.file_name}, Original UTC: ${eventDateUTC.toISOString()}, Adjusted EST: ${eventDateEST.toISOString()}`);
 
           if (!groupedEvents[dateStr]) {
             groupedEvents[dateStr] = [];
@@ -172,6 +177,21 @@ const GiftCalendar = ({ username, onClose }) => {
     }
   };
 
+  // Format time for display in EST
+  const formatTimeEST = (dateTimeStr) => {
+    try {
+      // Create a new date object from the string and adjust it for EST (+4 hours from UTC)
+      const dateTime = new Date(dateTimeStr);
+      const estDateTime = new Date(dateTime);
+      estDateTime.setHours(estDateTime.getHours() + 4);
+
+      return format(estDateTime, 'h:mm a');
+    } catch (err) {
+      console.error("Error formatting time:", err, dateTimeStr);
+      return "Time not available";
+    }
+  };
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
       <div className="bg-white p-6 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
@@ -248,7 +268,7 @@ const GiftCalendar = ({ username, onClose }) => {
                         <div className="font-medium">{event.title || event.file_name || "Unnamed Gift"}</div>
                         {event.releaseDate && (
                           <div className="text-sm text-gray-600">
-                            Release: {format(new Date(event.releaseDate), 'h:mm a')}
+                            Release: {formatTimeEST(event.releaseDate)} EST
                           </div>
                         )}
                         {event.message && (
