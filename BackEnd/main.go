@@ -35,6 +35,8 @@ type User struct {
 	SecondaryContactEmails string `json:"secondary_contact_emails,omitempty"`
 	SecurityQuestion       string `json:"security_question,omitempty"`
 	SecurityAnswer         string `json:"security_answer,omitempty"`
+	followers			   []int  `json:"followers,omitempty"`
+	following		   	   []int  `json:"following,omitempty"`	
 }
 
 // Gift represents a gift record in the system.
@@ -114,6 +116,8 @@ func main() {
         security_question TEXT,
         security_answer TEXT,
         receivers Text,
+		followers TEXT DEFAULT '',
+    	following TEXT DEFAULT '',
         force_password_change BOOLEAN DEFAULT 0
     );
     `
@@ -196,7 +200,12 @@ func main() {
 	http.HandleFunc("/update-privacy", updatePrivacyHandler)
 	http.HandleFunc("/notifications", getMessageNotificationHandler)
 	http.HandleFunc("/gift-calendar", giftCalendarHandler)
-
+	http.HandleFunc("/friends/following", getFollowingHandler)
+	http.HandleFunc("/friends/followers", getFollowersHandler)
+	http.HandleFunc("/users/discover", discoverUsersHandler)
+	http.HandleFunc("/users/search", searchUsersHandler)
+	http.HandleFunc("/users/follow", followUserHandler)
+	http.HandleFunc("/users/unfollow", unfollowUserHandler)
 	fmt.Println("Server listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("Server failed: %v", err)
@@ -1688,6 +1697,442 @@ func giftCalendarHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func getFollowersHandler(w http.ResponseWriter, r *http.Request){
+	enableCors(&w)
+	if handleOptions(w,r){
+		return
+	}
+	if !handleGet(w,r){
+		return
+	}
+    userID, boolval := QueryUser(w, r)
+	if !boolval{
+		return
+	}
+	var followersList string
+	var err error 
+	err = db.QueryRow("SELECT followers FROM users WHERE id = ?", userID).Scan(&followersList)
+    if err != nil {
+        if err == sql.ErrNoRows {
+            // No followers or user not found, return empty array
+            w.Header().Set("Content-Type", "application/json")
+            json.NewEncoder(w).Encode([]string{})
+            return
+        }
+        log.Printf("Error fetching followers: %v", err)
+        http.Error(w, "Server error", http.StatusInternalServerError)
+        return
+    }
+	if followersList == "" {
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode([]string{})
+        return
+    }
+
+    // Parse the comma-separated IDs
+    followerIDs := strings.Split(followersList, ",")
+    
+    // Convert the IDs to usernames
+    var followers []string
+    for _, idStr := range followerIDs {
+        id, err := strconv.Atoi(idStr)
+        if err != nil {
+            continue // Skip invalid IDs
+        }
+        
+        var username string
+        err = db.QueryRow("SELECT username FROM users WHERE id = ?", id).Scan(&username)
+        if err == nil && username != "" {
+            followers = append(followers, username)
+        }
+    }
+
+    // Return the list of followers
+    w.Header().Set("Content-Type", "application/json")
+    if err := json.NewEncoder(w).Encode(followers); err != nil {
+        http.Error(w, "Error generating response", http.StatusInternalServerError)
+        return
+    }
+}
+
+func getFollowingHandler(w http.ResponseWriter, r *http.Request) {
+    enableCors(&w)  // You had handlecors instead of enableCors
+    if handleOptions(w,r) {
+        return
+    }   
+    if !handleGet(w,r) {        
+        return
+    }
+    
+    userID, boolval := QueryUser(w, r)
+    if !boolval {
+        return // Error response already sent by QueryUser
+    }
+            
+    var followingList string
+    err := db.QueryRow("SELECT following FROM users WHERE id = ?", userID).Scan(&followingList)  // You used followersList instead of followingList
+    if err != nil {
+        if err == sql.ErrNoRows {
+            // No following users or user not found, return empty array
+            w.Header().Set("Content-Type", "application/json")
+            json.NewEncoder(w).Encode([]string{})
+            return
+        }
+        log.Printf("Error fetching following users: %v", err)
+        http.Error(w, "Server error", http.StatusInternalServerError)
+        return
+    }
+    
+    if followingList == "" {
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode([]string{})
+        return
+    }
+
+    // Parse the comma-separated IDs
+    followingIDs := strings.Split(followingList, ",")
+    
+    // Convert the IDs to usernames
+    var following []string  // You were using followingList again which is incorrect
+    for _, idStr := range followingIDs {
+        id, err := strconv.Atoi(idStr)
+        if err != nil {
+            continue // Skip invalid IDs
+        }
+        
+        var username string
+        err = db.QueryRow("SELECT username FROM users WHERE id = ?", id).Scan(&username)
+        if err == nil && username != "" {
+            following = append(following, username)
+        }
+    }
+
+    // Return the list of users being followed
+    w.Header().Set("Content-Type", "application/json")
+    if err := json.NewEncoder(w).Encode(following); err != nil {
+        http.Error(w, "Error generating response", http.StatusInternalServerError)
+        return
+    }
+}
+
+func discoverUsersHandler(w http.ResponseWriter, r *http.Request) {
+    enableCors(&w)
+    if handleOptions(w,r) {
+        return
+    }
+    if !handleGet(w,r) {
+        return
+    }
+    
+    userID, boolval := QueryUser(w, r)
+    if !boolval {
+        return // Error response already sent by QueryUser
+    }
+    
+    // Get the list of users the current user is already following
+    var followingList string
+    err := db.QueryRow("SELECT following FROM users WHERE id = ?", userID).Scan(&followingList)
+    if err != nil && err != sql.ErrNoRows {
+        log.Printf("Error fetching following list: %v", err)
+        http.Error(w, "Server error", http.StatusInternalServerError)
+        return
+    }
+    
+    // Convert the following list to a map for easy lookup
+    followingMap := make(map[string]bool)
+    if followingList != "" {
+        for _, idStr := range strings.Split(followingList, ",") {
+            if idStr != "" {
+                followingMap[idStr] = true
+            }
+        }
+    }
+    
+    // Find users who the current user isn't following yet
+    // Limit to 20 users for performance
+    rows, err := db.Query(`
+        SELECT id, username FROM users 
+        WHERE id != ? 
+        ORDER BY username
+        LIMIT 20
+    `, userID)
+    if err != nil {
+        log.Printf("Error discovering users: %v", err)
+        http.Error(w, "Server error", http.StatusInternalServerError)
+        return
+    }
+    defer rows.Close()
+    
+    // Filter out users that are already being followed
+    type UserResponse struct {
+        Username string `json:"username"`
+    }
+    
+    var discoveredUsers []UserResponse
+    for rows.Next() {
+        var otherUserID int
+        var otherUsername string
+        if err := rows.Scan(&otherUserID, &otherUsername); err != nil {
+            continue
+        }
+        
+        // Only include users who aren't already being followed
+        idStr := strconv.Itoa(otherUserID)
+        if !followingMap[idStr] {
+            discoveredUsers = append(discoveredUsers, UserResponse{Username: otherUsername})
+        }
+    }
+    
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(discoveredUsers)
+}
+
+func searchUsersHandler(w http.ResponseWriter, r *http.Request) {
+    enableCors(&w)
+    if handleOptions(w,r) {
+        return
+    }
+    if !handleGet(w,r) {
+        return
+    }
+    
+    query := r.URL.Query().Get("query")
+    if query == "" {
+        http.Error(w, "Search query is required", http.StatusBadRequest)
+        return
+    }
+    
+    // Search for users by username (case-insensitive)
+    rows, err := db.Query(`
+        SELECT username FROM users 
+        WHERE username LIKE ?
+        ORDER BY username
+        LIMIT 20
+    `, "%"+query+"%")
+    if err != nil {
+        log.Printf("Error searching users: %v", err)
+        http.Error(w, "Server error", http.StatusInternalServerError)
+        return
+    }
+    defer rows.Close()
+    
+    type UserResponse struct {
+        Username string `json:"username"`
+    }
+    
+    var matchedUsers []UserResponse
+    for rows.Next() {
+        var username string
+        if err := rows.Scan(&username); err != nil {
+            continue
+        }
+        matchedUsers = append(matchedUsers, UserResponse{Username: username})
+    }
+    
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(matchedUsers)
+}
+
+func followUserHandler(w http.ResponseWriter, r *http.Request) {
+    enableCors(&w)
+    if handleOptions(w,r) {
+        return
+    }
+    if !handlePost(w,r) {
+        return
+    }
+    
+    var req struct {
+        Username       string `json:"username"`
+        FriendUsername string `json:"friendUsername"`
+    }
+    
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+    
+    // Get the user IDs
+    var userID, friendID int
+    err := db.QueryRow("SELECT id FROM users WHERE username = ?", req.Username).Scan(&userID)
+    if err != nil {
+        http.Error(w, "User not found", http.StatusNotFound)
+        return
+    }
+    
+    err = db.QueryRow("SELECT id FROM users WHERE username = ?", req.FriendUsername).Scan(&friendID)
+    if err != nil {
+        http.Error(w, "Friend not found", http.StatusNotFound)
+        return
+    }
+    
+    // Get current following list
+    var followingList string
+    err = db.QueryRow("SELECT following FROM users WHERE id = ?", userID).Scan(&followingList)
+    if err != nil && err != sql.ErrNoRows {
+        log.Printf("Error fetching following list: %v", err)
+        http.Error(w, "Server error", http.StatusInternalServerError)
+        return
+    }
+    
+    // Check if already following
+    followingIDs := strings.Split(followingList, ",")
+    friendIDStr := strconv.Itoa(friendID)
+    for _, id := range followingIDs {
+        if id == friendIDStr {
+            // Already following, just return success
+            w.WriteHeader(http.StatusOK)
+            w.Write([]byte("Already following user"))
+            return
+        }
+    }
+    
+    // Add to following list
+    if followingList == "" {
+        followingList = friendIDStr
+    } else {
+        followingList += "," + friendIDStr
+    }
+    
+    // Update following list
+    _, err = db.Exec("UPDATE users SET following = ? WHERE id = ?", followingList, userID)
+    if err != nil {
+        log.Printf("Error updating following list: %v", err)
+        http.Error(w, "Server error", http.StatusInternalServerError)
+        return
+    }
+    
+    // Get friend's followers list
+    var followersList string
+    err = db.QueryRow("SELECT followers FROM users WHERE id = ?", friendID).Scan(&followersList)
+    if err != nil && err != sql.ErrNoRows {
+        log.Printf("Error fetching followers list: %v", err)
+        http.Error(w, "Server error", http.StatusInternalServerError)
+        return
+    }
+    
+    // Add to friend's followers list
+    userIDStr := strconv.Itoa(userID)
+    if followersList == "" {
+        followersList = userIDStr
+    } else {
+        followersList += "," + userIDStr
+    }
+    
+    // Update followers list
+    _, err = db.Exec("UPDATE users SET followers = ? WHERE id = ?", followersList, friendID)
+    if err != nil {
+        log.Printf("Error updating followers list: %v", err)
+        // Don't return error here, as the main following action was successful
+    }
+    
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Successfully followed user"))
+}
+
+func unfollowUserHandler(w http.ResponseWriter, r *http.Request) {
+    enableCors(&w)
+    if handleOptions(w,r) {
+        return
+    }
+    if !handlePost(w,r) {
+        return
+    }
+    
+    var req struct {
+        Username       string `json:"username"`
+        FriendUsername string `json:"friendUsername"`
+    }
+    
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+    
+    // Get the user IDs
+    var userID, friendID int
+    err := db.QueryRow("SELECT id FROM users WHERE username = ?", req.Username).Scan(&userID)
+    if err != nil {
+        http.Error(w, "User not found", http.StatusNotFound)
+        return
+    }
+    
+    err = db.QueryRow("SELECT id FROM users WHERE username = ?", req.FriendUsername).Scan(&friendID)
+    if err != nil {
+        http.Error(w, "Friend not found", http.StatusNotFound)
+        return
+    }
+    
+    // Get current following list
+    var followingList string
+    err = db.QueryRow("SELECT following FROM users WHERE id = ?", userID).Scan(&followingList)
+    if err != nil && err != sql.ErrNoRows {
+        log.Printf("Error fetching following list: %v", err)
+        http.Error(w, "Server error", http.StatusInternalServerError)
+        return
+    }
+    
+    // Remove from following list
+    if followingList == "" {
+        // Nothing to unfollow
+        w.WriteHeader(http.StatusOK)
+        w.Write([]byte("Not following this user"))
+        return
+    }
+    
+    followingIDs := strings.Split(followingList, ",")
+    friendIDStr := strconv.Itoa(friendID)
+    newFollowingIDs := make([]string, 0, len(followingIDs))
+    
+    for _, id := range followingIDs {
+        if id != "" && id != friendIDStr {
+            newFollowingIDs = append(newFollowingIDs, id)
+        }
+    }
+    
+    newFollowingList := strings.Join(newFollowingIDs, ",")
+    
+    // Update following list
+    _, err = db.Exec("UPDATE users SET following = ? WHERE id = ?", newFollowingList, userID)
+    if err != nil {
+        log.Printf("Error updating following list: %v", err)
+        http.Error(w, "Server error", http.StatusInternalServerError)
+        return
+    }
+    
+    // Get friend's followers list
+    var followersList string
+    err = db.QueryRow("SELECT followers FROM users WHERE id = ?", friendID).Scan(&followersList)
+    if err != nil && err != sql.ErrNoRows {
+        log.Printf("Error fetching followers list: %v", err)
+        // Continue anyway since main unfollow action was successful
+    } else if followersList != "" {
+        // Remove from friend's followers list
+        followersIDs := strings.Split(followersList, ",")
+        userIDStr := strconv.Itoa(userID)
+        newFollowersIDs := make([]string, 0, len(followersIDs))
+        
+        for _, id := range followersIDs {
+            if id != "" && id != userIDStr {
+                newFollowersIDs = append(newFollowersIDs, id)
+            }
+        }
+        
+        newFollowersList := strings.Join(newFollowersIDs, ",")
+        
+        // Update followers list
+        _, err = db.Exec("UPDATE users SET followers = ? WHERE id = ?", newFollowersList, friendID)
+        if err != nil {
+            log.Printf("Error updating followers list: %v", err)
+            // Don't return error as main unfollow action was successful
+        }
+    }
+    
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Successfully unfollowed user"))
+}
+
 
 func handleOptions(w http.ResponseWriter, r *http.Request) bool{
 	if r.Method == http.MethodOptions{

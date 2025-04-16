@@ -6,6 +6,7 @@ import { UserHeader } from "@/components/user-header.jsx";
 import { Button } from "@/components/ui/button.jsx";
 import MessageNotification from "../components/MessageNotification";
 import { format, parseISO, addDays } from "date-fns";
+import ChatIcon from "./ChatIcon.jsx";
 
 // Calendar Component
 const GiftCalendar = ({ username, onClose }) => {
@@ -441,8 +442,11 @@ const Dashboard = () => {
       {/* Header */}
       <UserHeader />
 
-      {/* Notifications */}
-      <div className="flex justify-end pr-8 mt-2">
+      {/* Add Chat and Notifications */}
+      <div className="flex justify-end pr-8 mt-2 items-center space-x-4 bg-yellow-100 p-2">
+        <div className="border-2 border-red-500">
+          <ChatIcon username={username} />
+        </div>
         <MessageNotification username={username} />
       </div>
       {/* Main Content */}
