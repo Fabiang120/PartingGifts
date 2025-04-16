@@ -1097,32 +1097,48 @@ func changePasswordHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func uploadGiftHandler(w http.ResponseWriter, r *http.Request) {
-	enableCors(&w)
-	if handleOptions(w,r){
-		return
-	}
-	if !handlePost(w,r){
-		return
-	}
+    enableCors(&w)
+    if handleOptions(w,r){
+        return
+    }
+    if !handlePost(w,r){
+        return
+    }
 
-	// Parse multipart form with 10MB limit
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		http.Error(w, "Error parsing form", http.StatusBadRequest)
-		return
-	}
+    // Parse multipart form with 10MB limit
+    if err := r.ParseMultipartForm(10 << 20); err != nil {
+        http.Error(w, "Error parsing form", http.StatusBadRequest)
+        return
+    }
 
-	userID, boolval := QueryUser(w, r)
-	if !boolval{
-		return
-	}
+    // Get username directly from form data
+    username := r.FormValue("username")
+    if username == "" {
+        http.Error(w, "Username is required", http.StatusBadRequest)
+        return
+    }
 
-	// Check if user allows receiving gifts
-	var canReceiveGifts bool = true // default to true
-	err := db.QueryRow("SELECT can_receive_gifts FROM privacy_settings WHERE user_id = ?", userID).Scan(&canReceiveGifts)
-	if err == nil && !canReceiveGifts {
-		http.Error(w, "User has disabled gift receiving", http.StatusForbidden)
-		return
-	}
+    // Query the user ID from the database directly
+    var userID int
+    if err := db.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID); err != nil {
+        if err == sql.ErrNoRows {
+            http.Error(w, "User not found", http.StatusNotFound)
+        } else {
+            log.Printf("Database error: %v", err)
+            http.Error(w, "Database error", http.StatusInternalServerError)
+        }
+        return
+    }
+
+    // Check if user allows receiving gifts
+    var canReceiveGifts bool = true // default to true
+    err := db.QueryRow("SELECT can_receive_gifts FROM privacy_settings WHERE user_id = ?", userID).Scan(&canReceiveGifts)
+    if err == nil && !canReceiveGifts {
+        http.Error(w, "User has disabled gift receiving", http.StatusForbidden)
+        return
+    }
+    
+    
 
 	// Get file from form data
 	file, header, err := r.FormFile("file")
