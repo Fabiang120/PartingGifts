@@ -41,15 +41,20 @@ const NewMemory = () => {
       alert("No file selected for upload.");
       return;
     }
-    if (!username) {
+    const storedUsername = sessionStorage.getItem("username");
+
+    if (!storedUsername) {
       alert("Username is not defined. Please log in again.");
       return;
     }
 
     const formData = new FormData();
-    formData.append("username", username);
+    formData.append("username", storedUsername);
     formData.append("file", selectedFile);
     formData.append("emailMessage", customMessage);
+
+    console.log("Sending username:", storedUsername);
+    console.log("File name:", selectedFile.name);
     // Removed scheduledTime field so it's only set later in memory-uploaded.
 
     try {
