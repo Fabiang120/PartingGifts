@@ -1,5 +1,5 @@
-// user-header.jsx
-import React, { useState } from 'react';
+// Updated user-header.jsx
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import {
     NavigationMenu,
@@ -9,11 +9,24 @@ import {
     NavigationMenuList,
     NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
-import { Menu, MoveRight, X, Users } from "lucide-react"; // Added Users icon
+import { Menu, MoveRight, X, Users } from "lucide-react";
 import Link from "next/link";
 import ChatIcon from "../pages/ChatIcon.jsx";
 
-export const UserHeader = ({ username }) => {
+export const UserHeader = ({ username: propUsername }) => {
+    const [username, setUsername] = useState(propUsername || "");
+
+    // Get username from sessionStorage if not provided as a prop
+    useEffect(() => {
+        if (!propUsername && typeof window !== "undefined") {
+            const storedUsername = sessionStorage.getItem("username");
+            console.log("UserHeader fetched username from sessionStorage:", storedUsername);
+            if (storedUsername) {
+                setUsername(storedUsername);
+            }
+        }
+    }, [propUsername]);
+
     const navigationItems = [
         {
             title: "Dashboard",
@@ -28,6 +41,7 @@ export const UserHeader = ({ username }) => {
     ];
 
     const [isOpen, setOpen] = useState(false);
+
     return (
         <header className="w-full z-40 bg-white fixed p-3 shadow-md">
             <div className="container relative mx-auto min-h-20 flex gap-4 flex-row lg:grid lg:grid-cols-3 items-center">
@@ -88,12 +102,19 @@ export const UserHeader = ({ username }) => {
                             <Users className="w-5 h-5 mr-1" /> Friends
                         </Link>
                     </Button>
-                    
-                    {/* Chat Icon */}
+
+                    {/* Chat Icon with username from state */}
                     <div className="mr-2">
-                        <ChatIcon username={username} />
+                        {username ? (
+                            <ChatIcon username={username} />
+                        ) : (
+                            <>
+                                <ChatIcon username="" />
+                                <span className="text-xs text-red-500">(No username)</span>
+                            </>
+                        )}
                     </div>
-                    
+
                     {/* Account Details */}
                     <Button asChild>
                         <Link href="/personal-details">

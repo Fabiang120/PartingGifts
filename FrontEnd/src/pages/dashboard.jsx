@@ -312,6 +312,8 @@ const Dashboard = () => {
   const [showCalendar, setShowCalendar] = useState(false); // Add state for calendar visibility
   const dataFetchedRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [followers, setFollowers] = useState([]);
+  const [following, setFollowing] = useState([]);
 
   // Effect to clear localStorage when component mounts (to reset gift states)
   useEffect(() => {
@@ -385,6 +387,11 @@ const Dashboard = () => {
         const pendingData = await pendingResponse.json();
         console.log("Pending messages data:", pendingData);
         setPendingMessages(pendingData.pending_messages || 0);
+
+        // NEW: Fetch followers and following data
+        await fetchFollowers(storedUsername);
+        await fetchFollowing(storedUsername);
+
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -406,6 +413,30 @@ const Dashboard = () => {
 
     fetchData();
   }, []);
+
+  const fetchFollowers = async (user) => {
+    try {
+      const response = await fetch(`http://localhost:8080/friends/followers?username=${user}`);
+      const data = await response.json();
+      setFollowers(Array.isArray(data) ? data : []);
+      console.log("Followers loaded:", data);
+    } catch (error) {
+      console.error('Error fetching followers:', error);
+      setFollowers([]);
+    }
+  };
+
+  const fetchFollowing = async (user) => {
+    try {
+      const response = await fetch(`http://localhost:8080/friends/following?username=${user}`);
+      const data = await response.json();
+      setFollowing(Array.isArray(data) ? data : []);
+      console.log("Following loaded:", data);
+    } catch (error) {
+      console.error('Error fetching following:', error);
+      setFollowing([]);
+    }
+  };
 
   const stopPendingGift = async (giftId) => {
     console.log("Received gift ID:", giftId);
@@ -461,14 +492,6 @@ const Dashboard = () => {
     <div className="min-h-screen bg-primary-foreground">
       {/* Header */}
       <UserHeader />
-
-      {/* Add Chat and Notifications */}
-      <div className="flex justify-end pr-8 mt-2 items-center space-x-4 bg-yellow-100 p-2">
-        <div className="border-2 border-red-500">
-          <ChatIcon username={username} />
-        </div>
-        <MessageNotification username={username} />
-      </div>
       {/* Main Content */}
       <main className="p-8 pt-20 space-y-8">
         {isLoading ? (

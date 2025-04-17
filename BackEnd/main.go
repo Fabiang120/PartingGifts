@@ -206,6 +206,7 @@ func main() {
 	http.HandleFunc("/users/search", searchUsersHandler)
 	http.HandleFunc("/users/follow", followUserHandler)
 	http.HandleFunc("/users/unfollow", unfollowUserHandler)
+	http.HandleFunc("/users/eligible-messaging", getEligibleMessagingUsersHandler)
 	fmt.Println("Server listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("Server failed: %v", err)
@@ -307,97 +308,146 @@ func updatePrivacyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
-	enableCors(&w)
-	if !handlePost(w,r){
+    enableCors(&w)
+    
+    if handleOptions(w,r) {
 		return
 	}
-	var req struct {
-		Sender   string `json:"sender"`
-		Receiver string `json:"receiver"`
-		Content  string `json:"content"`
+    
+    // Now handle POST requests
+    if !handlePost(w,r){
+		return
 	}
+    
+    var req struct {
+        Sender   string `json:"sender"`
+        Receiver string `json:"receiver"`
+        Content  string `json:"content"`
+    }
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request", http.StatusBadRequest)
+        return
+    }
 
-	var senderID, receiverID int
-	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", req.Sender).Scan(&senderID); err != nil {
-		http.Error(w, "Sender not found", http.StatusNotFound)
-		return
-	}
-	if err := db.QueryRow("SELECT id FROM users WHERE username = ?", req.Receiver).Scan(&receiverID); err != nil {
-		http.Error(w, "Receiver not found", http.StatusNotFound)
-		return
-	}
+    // Debug logs to help troubleshoot
+    log.Printf("Message from %s to %s: %s", req.Sender, req.Receiver, req.Content)
 
-	// Check if the receiver accepts messages
-	var canReceiveMessages bool = true // default to true
-	err := db.QueryRow("SELECT can_receive_messages FROM privacy_settings WHERE user_id = ?", receiverID).Scan(&canReceiveMessages)
-	if err == nil && !canReceiveMessages {
-		http.Error(w, "User does not accept messages", http.StatusForbidden)
-		return
-	}
+    var senderID, receiverID int
+    if err := db.QueryRow("SELECT id FROM users WHERE username = ?", req.Sender).Scan(&senderID); err != nil {
+        http.Error(w, "Sender not found", http.StatusNotFound)
+        return
+    }
+    if err := db.QueryRow("SELECT id FROM users WHERE username = ?", req.Receiver).Scan(&receiverID); err != nil {
+        http.Error(w, "Receiver not found", http.StatusNotFound)
+        return
+    }
 
-	encrypted, err := encrypt(req.Content)
-	if err != nil {
-		http.Error(w, "Encryption failed", http.StatusInternalServerError)
-		return
-	}
+    // Check if the receiver accepts messages
+    var canReceiveMessages bool = true // default to true
+    err := db.QueryRow("SELECT can_receive_messages FROM privacy_settings WHERE user_id = ?", receiverID).Scan(&canReceiveMessages)
+    if err == nil && !canReceiveMessages {
+        http.Error(w, "User does not accept messages", http.StatusForbidden)
+        return
+    }
 
-	_, err = db.Exec("INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, ?, ?)", senderID, receiverID, encrypted)
-	if err != nil {
-		http.Error(w, "Failed to store message", http.StatusInternalServerError)
-		return
-	}
+    // Check for mutual following
+    isMutual, err := checkMutualFollowing(senderID, receiverID)
+    if err != nil {
+        log.Printf("Error checking mutual following: %v", err)
+        http.Error(w, "Failed to verify mutual connection", http.StatusInternalServerError)
+        return
+    }
+    
+    if !isMutual {
+        http.Error(w, "You can only send messages to mutual followers", http.StatusForbidden)
+        return
+    }
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Message sent successfully"))
+    encrypted, err := encrypt(req.Content)
+    if err != nil {
+        log.Printf("Encryption error: %v", err)
+        http.Error(w, "Encryption failed", http.StatusInternalServerError)
+        return
+    }
+
+    result, err := db.Exec("INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, ?, ?)", senderID, receiverID, encrypted)
+    if err != nil {
+        log.Printf("Database error saving message: %v", err)
+        http.Error(w, "Failed to store message", http.StatusInternalServerError)
+        return
+    }
+    
+    msgID, _ := result.LastInsertId()
+    log.Printf("Successfully inserted message ID %d", msgID)
+
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Message sent successfully"))
 }
 
 func getMessagesHandler(w http.ResponseWriter, r *http.Request) {
-	enableCors(&w)
-	if !handleGet(w,r){
-		return
-	}
-	userID, boolval := QueryUser(w, r)
-	if !boolval{
-		return
-	}
+    enableCors(&w)
+    if !handleGet(w,r){
+        return
+    }
+    userID, boolval := QueryUser(w, r)
+    if !boolval{
+        return
+    }
 
-	rows, err := db.Query("SELECT sender_id, content, timestamp FROM messages WHERE receiver_id = ? ORDER BY timestamp DESC", userID)
-	if err != nil {
-		http.Error(w, "Failed to fetch messages", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
+    rows, err := db.Query(`
+        SELECT sender_id, receiver_id, content, timestamp 
+        FROM messages 
+        WHERE sender_id = ? OR receiver_id = ? 
+        ORDER BY timestamp DESC
+    `, userID, userID)
+    if err != nil {
+        http.Error(w, "Failed to fetch messages", http.StatusInternalServerError)
+        return
+    }
+    defer rows.Close()
 
-	type Message struct {
-		From      string `json:"from"`
-		Content   string `json:"content"`
-		Timestamp string `json:"timestamp"`
-	}
-	var messages []Message
-	
-	for rows.Next() {
-		var senderID int
-		var encryptedContent, timestamp string
-		if err := rows.Scan(&senderID, &encryptedContent, &timestamp); err != nil {
-			continue
-		}
-		var senderUsername string
-		db.QueryRow("SELECT username FROM users WHERE id = ?", senderID).Scan(&senderUsername)
+    type Message struct {
+        From      string `json:"from"`
+        Content   string `json:"content"`
+        Timestamp string `json:"timestamp"`
+        Type      string `json:"type"` // "sent" or "received"
+    }
+    var messages []Message
+    
+    for rows.Next() {
+        var senderID, receiverID int // <-- Need to declare receiverID here
+        var encryptedContent, timestamp string
+        if err := rows.Scan(&senderID, &receiverID, &encryptedContent, &timestamp); err != nil {
+            continue
+        }
+        
+        var senderUsername string
+        var messageType string
 
-		decrypted, err := decrypt(encryptedContent)
-		if err != nil {
-			decrypted = "[Could not decrypt]"
-		}
-		messages = append(messages, Message{From: senderUsername, Content: decrypted, Timestamp: timestamp})
-	}
+        if senderID == userID {
+            messageType = "sent"
+            db.QueryRow("SELECT username FROM users WHERE id = ?", receiverID).Scan(&senderUsername)
+        } else {
+            // This is a message received by the current user
+            messageType = "received"
+            db.QueryRow("SELECT username FROM users WHERE id = ?", senderID).Scan(&senderUsername)
+        }
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(messages)
+        decrypted, err := decrypt(encryptedContent)
+        if err != nil {
+            decrypted = "[Could not decrypt]"
+        }
+        messages = append(messages, Message{
+            From: senderUsername,
+            Content: decrypted,
+            Timestamp: timestamp,
+            Type: messageType,
+        })
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(messages)
 }
 
 func swaggerHandler(w http.ResponseWriter, r *http.Request) {
@@ -2149,6 +2199,138 @@ func unfollowUserHandler(w http.ResponseWriter, r *http.Request) {
     w.Write([]byte("Successfully unfollowed user"))
 }
 
+func checkMutualFollowing(user1ID, user2ID int) (bool, error) {
+    // Check if user1 follows user2
+    var user1Following string
+    err := db.QueryRow("SELECT following FROM users WHERE id = ?", user1ID).Scan(&user1Following)
+    if err != nil {
+        return false, err
+    }
+    
+    // Check if user2 follows user1
+    var user2Following string
+    err = db.QueryRow("SELECT following FROM users WHERE id = ?", user2ID).Scan(&user2Following)
+    if err != nil {
+        return false, err
+    }
+    
+    // Convert to arrays and check for mutual following
+    user1FollowingArr := strings.Split(user1Following, ",")
+    user2FollowingArr := strings.Split(user2Following, ",")
+    
+    user2IDStr := strconv.Itoa(user2ID)
+    user1IDStr := strconv.Itoa(user1ID)
+    
+    user1FollowsUser2 := false
+    for _, id := range user1FollowingArr {
+        if id == user2IDStr {
+            user1FollowsUser2 = true
+            break
+        }
+    }
+    
+    user2FollowsUser1 := false
+    for _, id := range user2FollowingArr {
+        if id == user1IDStr {
+            user2FollowsUser1 = true
+            break
+        }
+    }
+    
+    return user1FollowsUser2 && user2FollowsUser1, nil
+}
+
+func getEligibleMessagingUsersHandler(w http.ResponseWriter, r *http.Request) {
+    enableCors(&w)
+	if handleOptions(w,r) {
+		return
+	}
+    if !handleGet(w, r) {
+        return
+    }
+    
+    userID, boolval := QueryUser(w, r)
+    if !boolval {
+        return
+    }
+    
+    // Get users who mutually follow with the current user
+    var followingList string
+    err := db.QueryRow("SELECT following FROM users WHERE id = ?", userID).Scan(&followingList)
+    if err != nil {
+        http.Error(w, "Failed to retrieve following list", http.StatusInternalServerError)
+        return
+    }
+    
+    if followingList == "" {
+        // No one is being followed, so no eligible messaging users
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode([]map[string]string{})
+        return
+    }
+    
+    // Get followers
+    var followersList string
+    err = db.QueryRow("SELECT followers FROM users WHERE id = ?", userID).Scan(&followersList)
+    if err != nil {
+        http.Error(w, "Failed to retrieve followers list", http.StatusInternalServerError)
+        return
+    }
+    
+    if followersList == "" {
+        // No followers, so no mutual connections
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode([]map[string]string{})
+        return
+    }
+    
+    // Find mutual connections
+    followingIDs := strings.Split(followingList, ",")
+    followerIDs := strings.Split(followersList, ",")
+    
+    mutualIDs := []string{}
+    for _, followingID := range followingIDs {
+        if followingID == "" {
+            continue
+        }
+        
+        for _, followerID := range followerIDs {
+            if followerID == "" {
+                continue
+            }
+            
+            if followingID == followerID {
+                mutualIDs = append(mutualIDs, followingID)
+                break
+            }
+        }
+    }
+    
+    if len(mutualIDs) == 0 {
+        // No mutual connections
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode([]map[string]string{})
+        return
+    }
+    
+    // Get usernames for mutual connections
+    var users []map[string]string
+    for _, idStr := range mutualIDs {
+        id, err := strconv.Atoi(idStr)
+        if err != nil {
+            continue
+        }
+        
+        var username string
+        err = db.QueryRow("SELECT username FROM users WHERE id = ?", id).Scan(&username)
+        if err == nil && username != "" {
+            users = append(users, map[string]string{"username": username})
+        }
+    }
+    
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(users)
+}
 
 func handleOptions(w http.ResponseWriter, r *http.Request) bool{
 	if r.Method == http.MethodOptions{
