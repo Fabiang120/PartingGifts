@@ -81,7 +81,7 @@ const NewMemory = () => {
   };
 
   return (
-    <div className="min-h-screen bg-blue-100 flex flex-col items-center">
+    <div className="min-h-screen bg-primary-foreground flex flex-col items-center">
       <UserHeader/>
 
       <main className="flex flex-col items-center w-full p-8 pt-20">

@@ -28,6 +28,8 @@ export default async (router) => {
         console.error(err.message);
       if (err.message.includes('UNIQUE constraint failed: users.username')) {
         return { username: 'Sorry, that username is taken. Please try again.' };
+      } else if (err.message.includes('Invalid Password.')) {
+        return { message: err.message };
       } else {
         return { message: 'Registration failed. Please try again.' };
       }
