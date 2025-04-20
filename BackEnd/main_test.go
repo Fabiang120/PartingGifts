@@ -662,3 +662,49 @@ func TestSwaggerHandler(t *testing.T) {
 		t.Errorf("Expected 200 OK or 404 Not Found, got %d", rec.Code)
 	}
 }
+
+func TestGetFollowersHandler(t *testing.T) {
+	db, _ = setupTestDB()
+	_ = insertUserWithID(1, "Sahil_1234", "pass")
+	_ = insertUserWithID(2, "Friend_5678", "pass")
+
+	// Friend_5678 follows Sahil_1234
+	_, _ = db.Exec("UPDATE users SET followers = '2' WHERE id = 1")
+	_, _ = db.Exec("UPDATE users SET following = '1' WHERE id = 2")
+
+	req := httptest.NewRequest("GET", "/friends/followers?username=Sahil_1234", nil)
+	rec := httptest.NewRecorder()
+
+	getFollowersHandler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+
+	if !bytes.Contains(rec.Body.Bytes(), []byte("Friend_5678")) {
+		t.Errorf("Expected follower Friend_5678 not found in response: %s", rec.Body.String())
+	}
+}
+
+func TestGetFollowingHandler(t *testing.T) {
+	db, _ = setupTestDB()
+	_ = insertUserWithID(1, "Sahil_1234", "pass")
+	_ = insertUserWithID(2, "Friend_5678", "pass")
+
+	// Sahil_1234 follows Friend_5678
+	_, _ = db.Exec("UPDATE users SET following = '2' WHERE id = 1")
+	_, _ = db.Exec("UPDATE users SET followers = '1' WHERE id = 2")
+
+	req := httptest.NewRequest("GET", "/friends/following?username=Sahil_1234", nil)
+	rec := httptest.NewRecorder()
+
+	getFollowingHandler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+
+	if !bytes.Contains(rec.Body.Bytes(), []byte("Friend_5678")) {
+		t.Errorf("Expected following Friend_5678 not found in response: %s", rec.Body.String())
+	}
+}
