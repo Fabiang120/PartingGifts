@@ -576,3 +576,18 @@ func TestDiscoverUsersHandler(t *testing.T) {
 		t.Errorf("Friend_5678 should not appear in discovered users")
 	}
 }
+
+func TestGetEligibleMessagingUsersHandler(t *testing.T) {
+	db, _ = setupTestDB()
+	_ = insertUserWithID(1, "Sahil_1234", "pass")
+	_ = insertUserWithID(2, "Friend_5678", "pass")
+
+	// Set up mutual follow
+	_, _ = db.Exec("UPDATE users SET following = '2', followers = '2' WHERE id = 1")
+	_, _ = db.Exec("UPDATE users SET following = '1', followers = '1' WHERE id = 2")
+
+	rec := performRequest(getEligibleMessagingUsersHandler, "GET", "/users/eligible-messaging?username=Sahil_1234", nil)
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+}
