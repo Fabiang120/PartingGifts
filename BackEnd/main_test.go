@@ -536,3 +536,23 @@ func TestGiftCalendarHandler(t *testing.T) {
 		t.Errorf("Expected 200 OK, got %d", rec.Code)
 	}
 }
+
+func TestFollowAndUnfollowHandler(t *testing.T) {
+	db, _ = setupTestDB()
+	_ = insertUserWithID(1, "Sahil_1234", "pass")
+	_ = insertUserWithID(2, "Friend_5678", "pass")
+
+	// Follow
+	reqFollow := []byte(`{"username": "Sahil_1234", "friendUsername": "Friend_5678"}`)
+	recFollow := performRequest(followUserHandler, "POST", "/users/follow", reqFollow)
+	if recFollow.Code != http.StatusOK {
+		t.Errorf("Follow failed: got %d", recFollow.Code)
+	}
+
+	// Unfollow
+	reqUnfollow := []byte(`{"username": "Sahil_1234", "friendUsername": "Friend_5678"}`)
+	recUnfollow := performRequest(unfollowUserHandler, "POST", "/users/unfollow", reqUnfollow)
+	if recUnfollow.Code != http.StatusOK {
+		t.Errorf("Unfollow failed: got %d", recUnfollow.Code)
+	}
+}
