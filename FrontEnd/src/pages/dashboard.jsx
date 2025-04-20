@@ -125,12 +125,11 @@ const GiftCalendar = ({ username, onClose }) => {
           className={`p-2 border ${hasEvents ? 'bg-blue-50 cursor-pointer' : ''} 
                      ${selectedDate === dateStr ? 'bg-blue-200' : ''} 
                      ${isToday ? 'border-2 border-red-400' : ''}`}
-          onClick={() => {
-            if (hasEvents) {
-              setSelectedDate(dateStr);
-              console.log(`Selected date: ${dateStr}, Events:`, eventsByDate[dateStr]);
-            }
-          }}
+                     onClick={() => {
+                      setSelectedDate(dateStr); // Always allow selection
+                      console.log(`Selected date: ${dateStr}`, eventsByDate[dateStr] || []);
+                    }}
+                    
         >
           <div className="text-center">
             <span className={`font-medium ${isToday ? 'text-red-600' : ''}`}>{day}</span>
@@ -250,6 +249,7 @@ const GiftCalendar = ({ username, onClose }) => {
               <div className="mt-1 text-xs text-gray-500">
                 * Today's date is shown with a red border
               </div>
+              
             </div>
 
             <div>
