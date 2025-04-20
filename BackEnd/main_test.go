@@ -524,3 +524,15 @@ func TestGetMessageNotificationHandler_WithUnreadMessages(t *testing.T) {
 		t.Errorf("Expected 200 OK, got %d", rec.Code)
 	}
 }
+
+func TestGiftCalendarHandler(t *testing.T) {
+	db, _ = setupTestDB()
+	_ = insertUserWithID(1, "Sahil_1234", "Sahil@1234")
+	_, _ = db.Exec(`INSERT INTO gifts (user_id, file_name, custom_message, scheduled_release, receivers) 
+                    VALUES (1, 'file.pdf', 'Bye Friend', '2030-01-01 10:00:00', 'a@b.com')`)
+
+	rec := performRequest(giftCalendarHandler, "GET", "/gift-calendar?username=Sahil_1234", nil)
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+}
