@@ -484,3 +484,30 @@ func TestEncryptDecryptMessage(t *testing.T) {
 		t.Errorf("Expected decrypted text to be %q, got %q", original, decrypted)
 	}
 }
+
+func TestSendMessageHandler(t *testing.T) {
+	db, _ = setupTestDB()
+
+	// Insert both users and their follow relationships
+	_, _ = db.Exec(`INSERT INTO users (id, username, following, followers) VALUES 
+        (1, 'Sahil_1234', '2', '2'),
+        (2, 'Friend_5678', '1', '1')`)
+
+	// Ensure Friend_5678 allows messages
+	_, _ = db.Exec(`INSERT INTO privacy_settings (user_id, can_receive_messages) VALUES (2, 1)`)
+
+	// Sanity check — print DB rows
+	var u1Following, u2Following, u1Followers, u2Followers string
+	_ = db.QueryRow("SELECT following, followers FROM users WHERE id = 1").Scan(&u1Following, &u1Followers)
+	_ = db.QueryRow("SELECT following, followers FROM users WHERE id = 2").Scan(&u2Following, &u2Followers)
+	fmt.Println("User1 (Sahil) follows:", u1Following, "| followers:", u1Followers)
+	fmt.Println("User2 (Friend) follows:", u2Following, "| followers:", u2Followers)
+
+	// Attempt to send message
+	reqBody := []byte(`{"sender": "Sahil_1234", "receiver": "Friend_5678", "content": "Hi!"}`)
+	rec := performRequest(sendMessageHandler, "POST", "/send-message", reqBody)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+}
