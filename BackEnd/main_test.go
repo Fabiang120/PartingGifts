@@ -32,7 +32,9 @@ func setupTestDB() (*sql.DB, error) {
         security_question TEXT,
         security_answer TEXT,
         receivers TEXT,
-        force_password_change BOOLEAN DEFAULT 0
+        force_password_change BOOLEAN DEFAULT 0,
+        followers TEXT DEFAULT '',
+        following TEXT DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS gifts (
@@ -43,7 +45,7 @@ func setupTestDB() (*sql.DB, error) {
         custom_message TEXT,
         receivers TEXT,
         upload_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-        scheduled_time DATETIME,
+        scheduled_release DATETIME,
         pending BOOLEAN DEFAULT 1,
         FOREIGN KEY(user_id) REFERENCES users(id)
     );
@@ -68,8 +70,9 @@ func setupTestDB() (*sql.DB, error) {
         FOREIGN KEY(receiver_id) REFERENCES users(id)
     );
 
-
+	
 `)
+
 	if err != nil {
 		return nil, err
 	}
