@@ -105,7 +105,7 @@ const FileMemory = () => {
      <div className="bg-white p-6 rounded-3xl lg:w-[900px] aspect-video flex flex-col items-center justify-center gap-x-6">
        <h1 className="text-xl font-bold text-black">Create a new memory!</h1>
        <p className="text-sm text-gray-600 mb-8">
-         Record or upload a memory that will last forever.
+         Upload a memory that will last forever.
        </p>
 
 

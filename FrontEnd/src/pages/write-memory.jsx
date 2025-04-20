@@ -10,6 +10,8 @@ import Highlight from "@tiptap/extension-highlight";
 import jsPDF from "jspdf";
 import htmlToPdfMake from "html-to-pdfmake";
 import { Document, Page, Text, View, PDFDownloadLink, pdf } from "@react-pdf/renderer";
+import RichTextEditor from "@/components/TiptapEditor";
+import { UserHeader } from "@/components/user-header";
 
 const ExportedPDF = ({ content }) => (
     <Document>
@@ -27,37 +29,12 @@ const WriteMemory = () => {
   const [message, setMessage] = useState("");
   const [username, setUsername] = useState("");
   const router = useRouter();
-  const editor = useEditor({
-    extensions: [
-        StarterKit,
-        TextStyle,
-        FontSize,
-        Color,
-        Underline
-    ],
-    content: '<p>Start typing here...</p>',
-});
 
-useEffect(() => {
-  if (typeof window !== "undefined") {
-    setUsername(sessionStorage.getItem("username") || "");
-  }
-}, []);
-
-const applyStyle = (style) => {
-    if (!editor) return;
-    editor.chain().focus()[style]().run();
-};
-
-const changeColor = (event) => {
-    if (!editor) return;
-    editor.chain().focus().setColor(event.target.value).run();
-};
-
-const changeSize = (size) => {
-    if (!editor) return;
-    editor.chain().focus().setFontSize('textStyle', { fontSize: size }).run();
-};
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setUsername(sessionStorage.getItem("username") || "");
+    }
+  }, []);
 
   const handleUpload = async () => {
     if (!username) {
@@ -98,44 +75,22 @@ const changeSize = (size) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center text-black bg-blue-100 p-8">
-      <h1 className="text-xl font-bold text-black mb-4">Write a Memory</h1>
-
-      <div className="w-full max-w-3xl bg-white p-6 rounded-lg shadow-md">
-        {/* Title Input */}
-        <input
+    <div className="min-h-screen bg-primary-foreground flex flex-col items-center">
+         <UserHeader/>
+  
+    
+         <div className="flex flex-col min-h-screen flex-grow justify-center items-center">
+         <div className="bg-white p-6 rounded-3xl flex flex-col items-center justify-center gap-x-6">
+         <p className="mb-5 text-2xl font-bold">Write Memory</p>
+         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Memory Title"
-          className="w-full text-lg font-semibold border-b-2 border-gray-300 p-2 focus:outline-none focus:border-blue-500"
+          className="w-full text-lg font-semibold border-b-2 border-gray-300 p-2 focus:outline-none focus:border-blue-500 mb-5"
         />
-
-        {/* Rich Text Editor */}
-        <div className="mt-4">
-          { editor &&
-            <div className="toolbar mb-2 space-x-3">
-          <button
-          className={`p-2 rounded-md ${editor.isActive("bold") ? "bg-blue-500 text-white" : "bg-white border"}`}
-        onClick={() => applyStyle('toggleBold')}>Bold</button>
-                <button className={`p-2 rounded-md ${editor.isActive("italic") ? "bg-blue-500 text-white" : "bg-white border"}`} onClick={() => applyStyle('toggleItalic')}>Italic</button>
-                <button className={`p-2 rounded-md ${editor.isActive("bold") ? "bg-blue-500 text-white" : "bg-white border"}`} onClick={() => applyStyle('toggleUnderline')}>Underline</button>
-                <input type="color" onChange={changeColor} />
-                <select onChange={(e) => changeSize(e.target.value)}>
-                    <option value="12px">12px</option>
-                    <option value="16px">16px</option>
-                    <option value="20px">20px</option>
-                    <option value="24px">24px</option>
-                </select>
-            </div>
-          }
-          <div className="border border-gray-300 rounded-lg shadow-md p-4 bg-white min-h-[200px]">
-                <EditorContent editor={editor} className="prose max-w-full focus:outline-none" />
-            </div>
-        </div>
-
-        {/* Buttons */}
-        <div className="mt-6 flex justify-between">
+         <RichTextEditor content={message} onChange={setMessage} />
+         <div className="mt-6 flex justify-between w-full">
           <button
             className="px-6 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
             onClick={handleUpload}
@@ -149,9 +104,13 @@ const changeSize = (size) => {
             Cancel
           </button>
         </div>
+         </div>
+         
+         </div>
+         
 
         {message && <p className="mt-4 text-sm text-green-600">{message}</p>}
-      </div>
+
     </div>
   );
 };
