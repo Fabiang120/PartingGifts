@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Image from "next/image";
+import { UserHeader } from "@/components/user-header";
 
 const RecordMemory = () => {
   const videoRef = useRef(null);
@@ -132,28 +133,56 @@ const RecordMemory = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-blue-100 p-8">
-      <h1 className="text-xl font-bold text-black mb-4">Record a Memory</h1>
-      
-      <div className="w-full mt-4 flex flex-col items-center justify-end">
-        <video ref={videoRef} className="w-full max-w-6xl mb-4 rounded-3xl shadow-strong" autoPlay playsInline></video>
-        {videoBlob && <video className="absolute w-full max-w-6xl mb-4" controls src={URL.createObjectURL(videoBlob)}></video>}
+    <div className="min-h-screen bg-primary-foreground flex flex-col items-center">
+      <UserHeader />
 
-        <div className="absolute flex flex-row space-x-2 m-10 items-center justify-center">
+      <div className="w-full flex flex-grow justify-center items-center mt-4">
+        <div className="relative w-full max-w-6xl bg-white rounded-3xl shadow-strong p-4 flex flex-col items-center">
+          <video
+            ref={videoRef}
+            className="w-full max-w-full rounded-3xl mb-4"
+            autoPlay
+            playsInline
+          />
+          {videoBlob && (
+            <div className="absolute w-full max-w-full mb-4 px-4">
+            <video
+              className="w-full max-w-full rounded-3xl"
+              controls
+              src={URL.createObjectURL(videoBlob)}
+            ></video>
+            </div>
+          )}
+
+          <div className="flex flex-row space-x-2 items-center justify-center">
             {videoBlob ? (
-                <>
-                <div className="w-20 h-20 p-5 bg-green-500 text-white rounded-full hover:bg-green-600" onClick={handleUpload}>
-                    <Image src="/checkmark.png" width={40} height={40}/>
+              <>
+                <div
+                  className="w-20 h-20 p-5 bg-green-500 text-white rounded-full hover:bg-green-600 cursor-pointer"
+                  onClick={handleUpload}
+                >
+                  <Image src="/checkmark.png" width={40} height={40} />
                 </div>
-                <div className="w-20 h-20 p-5 bg-red-500 text-white rounded-full hover:bg-red-600" onClick={() => setVideoBlob(null)}>
-                    <Image src="/redo.png" width={40} height={40}/>
+                <div
+                  className="w-20 h-20 p-5 bg-red-500 text-white rounded-full hover:bg-red-600 cursor-pointer"
+                  onClick={() => setVideoBlob(null)}
+                >
+                  <Image src="/redo.png" width={40} height={40} />
                 </div>
-                </>
+              </>
             ) : (
-                <div className="w-20 h-20 bg-red-500 text-white rounded-full hover:bg-red-600" onClick={recording ? stopRecording : startRecording}>
-                    { recording ? <div className="bg-white w-8 h-8 m-6"></div> : <div className="bg-white w-10 h-10 m-5 rounded-full"></div> }
-                </div>
+              <div
+                className="w-20 h-20 bg-red-500 text-white rounded-full hover:bg-red-600 cursor-pointer"
+                onClick={recording ? stopRecording : startRecording}
+              >
+                {recording ? (
+                  <div className="bg-white w-8 h-8 m-6"></div>
+                ) : (
+                  <div className="bg-white w-10 h-10 m-5 rounded-full"></div>
+                )}
+              </div>
             )}
+          </div>
         </div>
       </div>
 

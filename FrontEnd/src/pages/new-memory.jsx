@@ -5,95 +5,7 @@ import { Button } from "@/components/ui/button";
 
 
 const NewMemory = () => {
- const [selectedFile, setSelectedFile] = useState(null);
- const [message, setMessage] = useState("");
- const [customMessage, setCustomMessage] = useState("");
- const [username, setUsername] = useState("");
  const router = useRouter();
-
-
- useEffect(() => {
-   if (typeof window !== "undefined") {
-     const storedUsername = sessionStorage.getItem("username");
-     if (storedUsername) {
-       setUsername(storedUsername);
-     }
-   }
- }, []);
-
-
- const handleFileChange = (file) => {
-   if (file) {
-     setSelectedFile(file);
-     setMessage(`File selected: ${file.name}`);
-   }
- };
-
-
- const handleDragOver = (event) => {
-   event.preventDefault();
- };
-
-
- const handleDrop = (event) => {
-   event.preventDefault();
-   if (event.dataTransfer.files.length > 0) {
-     handleFileChange(event.dataTransfer.files[0]);
-   }
- };
-
-
- const handleUpload = async () => {
-   if (!selectedFile) {
-     alert("No file selected for upload.");
-     return;
-   }
-   const storedUsername = sessionStorage.getItem("username");
-
-
-   if (!storedUsername) {
-     alert("Username is not defined. Please log in again.");
-     return;
-   }
-
-
-   const formData = new FormData();
-   formData.append("username", storedUsername);
-   formData.append("file", selectedFile);
-   formData.append("emailMessage", customMessage);
-
-
-   console.log("Sending username:", storedUsername);
-   console.log("File name:", selectedFile.name);
-   // Removed scheduledTime field so it's only set later in memory-uploaded.
-
-
-   try {
-     const response = await fetch("http://localhost:8080/upload-gift", {
-       method: "POST",
-       body: formData,
-     });
-
-
-     if (!response.ok) {
-       const errorText = await response.text();
-       throw new Error(`Upload failed: ${errorText}`);
-     }
-
-
-     const responseData = await response.json();
-     setMessage(responseData.message);
-
-
-     sessionStorage.setItem("currentGiftId", responseData.giftId);
-
-
-     router.push("/memory-uploaded");
-   } catch (err) {
-     console.error("Upload error:", err);
-     alert(err.message || "Upload failed. Please try again.");
-   }
- };
 
 
  const [activeTab, setActiveTab] = useState("video");
@@ -137,7 +49,11 @@ const NewMemory = () => {
              Share videos, photos, and PDFs to family and friends.
            </p>
          )}
-         <Button className="self-start">
+         <Button className="self-start" onClick={() => {
+          if (activeTab === 'video') router.push('/record-memory');
+          else if (activeTab === 'written') router.push('/write-memory');
+          else router.push('/file-memory');
+         }}>
            {activeTab === "video" ? "Record Memory" : activeTab === "written" ? "Write Memory" : "Upload File"}
          </Button>
        </div>
