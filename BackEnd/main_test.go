@@ -591,3 +591,74 @@ func TestGetEligibleMessagingUsersHandler(t *testing.T) {
 		t.Errorf("Expected 200 OK, got %d", rec.Code)
 	}
 }
+
+func TestGetGiftsHandler(t *testing.T) {
+	db, _ = setupTestDB()
+	_ = insertUserWithID(1, "Sahil_1234", "pass")
+
+	// Insert some gifts for the user
+	_, _ = db.Exec(`INSERT INTO gifts (user_id, file_name, custom_message) 
+                    VALUES (1, 'gift1.pdf', 'First gift'), 
+                           (1, 'gift2.pdf', 'Second gift')`)
+
+	// Make request
+	req := httptest.NewRequest("GET", "/gifts?username=Sahil_1234", nil)
+	rec := httptest.NewRecorder()
+
+	getGiftsHandler(rec, req)
+
+	// Validate response
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+
+	var gifts []map[string]interface{}
+	err := json.Unmarshal(rec.Body.Bytes(), &gifts)
+	if err != nil {
+		t.Errorf("Failed to parse response JSON: %v", err)
+	}
+
+	if len(gifts) != 2 {
+		t.Errorf("Expected 2 gifts, got %d", len(gifts))
+	}
+}
+
+func TestPendingGiftsHandler(t *testing.T) {
+	db, _ = setupTestDB()
+	_ = insertUserWithID(1, "Sahil_1234", "pass")
+
+	// One pending gift
+	_, _ = db.Exec("INSERT INTO gifts (user_id, file_name, pending) VALUES (1, 'gift.txt', 1)")
+
+	rec := performRequest(pendingGiftsHandler, "GET", "/dashboard/pending-gifts?username=Sahil_1234", nil)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+}
+
+func TestSearchUsersHandler(t *testing.T) {
+	db, _ = setupTestDB()
+	_ = insertUserWithID(1, "Sahil_1234", "pass")
+	_ = insertUserWithID(2, "SahilFriend", "pass")
+	_ = insertUserWithID(3, "SomeoneElse", "pass")
+
+	req := httptest.NewRequest("GET", "/users/search?query=Sahil", nil)
+	rec := httptest.NewRecorder()
+
+	searchUsersHandler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+}
+func TestSwaggerHandler(t *testing.T) {
+	req := httptest.NewRequest("GET", "/swagger.json", nil)
+	rec := httptest.NewRecorder()
+
+	swaggerHandler(rec, req)
+
+	if rec.Code != http.StatusOK && rec.Code != http.StatusNotFound {
+		t.Errorf("Expected 200 OK or 404 Not Found, got %d", rec.Code)
+	}
+}
