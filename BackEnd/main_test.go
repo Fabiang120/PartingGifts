@@ -458,3 +458,29 @@ func TestResetPasswordHandler(t *testing.T) {
 		t.Errorf("Expected 200 OK, got %d", rec.Code)
 	}
 }
+
+func insertUserWithID(id int, username, plainPassword string) error {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(plainPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec("INSERT INTO users (id, username, password) VALUES (?, ?, ?)", id, username, hashed)
+	return err
+}
+
+func TestEncryptDecryptMessage(t *testing.T) {
+	original := "This is a secret message!"
+	encrypted, err := encrypt(original)
+	if err != nil {
+		t.Fatalf("Encryption failed: %v", err)
+	}
+
+	decrypted, err := decrypt(encrypted)
+	if err != nil {
+		t.Fatalf("Decryption failed: %v", err)
+	}
+
+	if decrypted != original {
+		t.Errorf("Expected decrypted text to be %q, got %q", original, decrypted)
+	}
+}
