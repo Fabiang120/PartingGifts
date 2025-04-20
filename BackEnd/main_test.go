@@ -511,3 +511,16 @@ func TestSendMessageHandler(t *testing.T) {
 		t.Errorf("Expected 200 OK, got %d", rec.Code)
 	}
 }
+
+func TestGetMessageNotificationHandler_WithUnreadMessages(t *testing.T) {
+	db, _ = setupTestDB()
+	_ = insertUserWithID(1, "Friend_5678", "pass")
+	_ = insertUserWithID(2, "Sahil_1234", "pass")
+	encrypted, _ := encrypt("Hey!")
+	_, _ = db.Exec("INSERT INTO messages (sender_id, receiver_id, content, is_read) VALUES (?, ?, ?, 0)", 2, 1, encrypted)
+
+	rec := performRequest(getMessageNotificationHandler, "GET", "/notifications?username=Friend_5678", nil)
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+}
