@@ -1,182 +1,183 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, act } from "react";
 import { useRouter } from "next/router";
 import { UserHeader } from "@/components/user-header";
+import { Button } from "@/components/ui/button";
+
 
 const NewMemory = () => {
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [message, setMessage] = useState("");
-  const [customMessage, setCustomMessage] = useState("");
-  const [username, setUsername] = useState("");
-  const router = useRouter();
+ const [selectedFile, setSelectedFile] = useState(null);
+ const [message, setMessage] = useState("");
+ const [customMessage, setCustomMessage] = useState("");
+ const [username, setUsername] = useState("");
+ const router = useRouter();
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedUsername = sessionStorage.getItem("username");
-      if (storedUsername) {
-        setUsername(storedUsername);
-      }
-    }
-  }, []);
 
-  const handleFileChange = (file) => {
-    if (file) {
-      setSelectedFile(file);
-      setMessage(`File selected: ${file.name}`);
-    }
-  };
+ useEffect(() => {
+   if (typeof window !== "undefined") {
+     const storedUsername = sessionStorage.getItem("username");
+     if (storedUsername) {
+       setUsername(storedUsername);
+     }
+   }
+ }, []);
 
-  const handleDragOver = (event) => {
-    event.preventDefault();
-  };
 
-  const handleDrop = (event) => {
-    event.preventDefault();
-    if (event.dataTransfer.files.length > 0) {
-      handleFileChange(event.dataTransfer.files[0]);
-    }
-  };
+ const handleFileChange = (file) => {
+   if (file) {
+     setSelectedFile(file);
+     setMessage(`File selected: ${file.name}`);
+   }
+ };
 
-  const handleUpload = async () => {
-    if (!selectedFile) {
-      alert("No file selected for upload.");
-      return;
-    }
-    const storedUsername = sessionStorage.getItem("username");
 
-    if (!storedUsername) {
-      alert("Username is not defined. Please log in again.");
-      return;
-    }
+ const handleDragOver = (event) => {
+   event.preventDefault();
+ };
 
-    const formData = new FormData();
-    formData.append("username", storedUsername);
-    formData.append("file", selectedFile);
-    formData.append("emailMessage", customMessage);
 
-    console.log("Sending username:", storedUsername);
-    console.log("File name:", selectedFile.name);
-    // Removed scheduledTime field so it's only set later in memory-uploaded.
+ const handleDrop = (event) => {
+   event.preventDefault();
+   if (event.dataTransfer.files.length > 0) {
+     handleFileChange(event.dataTransfer.files[0]);
+   }
+ };
 
-    try {
-      const response = await fetch("http://localhost:8080/upload-gift", {
-        method: "POST",
-        body: formData,
-      });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Upload failed: ${errorText}`);
-      }
+ const handleUpload = async () => {
+   if (!selectedFile) {
+     alert("No file selected for upload.");
+     return;
+   }
+   const storedUsername = sessionStorage.getItem("username");
 
-      const responseData = await response.json();
-      setMessage(responseData.message);
 
-      sessionStorage.setItem("currentGiftId", responseData.giftId);
+   if (!storedUsername) {
+     alert("Username is not defined. Please log in again.");
+     return;
+   }
 
-      router.push("/memory-uploaded");
-    } catch (err) {
-      console.error("Upload error:", err);
-      alert(err.message || "Upload failed. Please try again.");
-    }
-  };
 
-  return (
-    <div className="min-h-screen bg-primary-foreground flex flex-col items-center">
-      <UserHeader/>
+   const formData = new FormData();
+   formData.append("username", storedUsername);
+   formData.append("file", selectedFile);
+   formData.append("emailMessage", customMessage);
 
-      <main className="flex flex-col items-center w-full p-8 pt-20">
-        <div className="w-full max-w-3xl flex flex-col items-center p-8 bg-white rounded-lg shadow-md mt-8">
-        <h1 className="text-xl font-bold text-black">Create a new memory!</h1>
-        <p className="text-sm text-gray-600 mb-8">
-          Record or upload a memory that will last forever.
-        </p>
 
-        <div className="w-full px-6 flex flex-row space-x-4 items-center">
-          <div
-            className="flex flex-col items-center border-2 border-red-600 rounded-lg p-2 w-full bg-gray-50 cursor-pointer"
-            onClick={() => router.push('/write-memory')}
-          >
-            <img
-              src="https://cdn-icons-png.flaticon.com/128/1170/1170221.png"
-              alt="Write Icon"
-              className="w-8"
-            />
-            <label
-              htmlFor="record"
-              className="text-red-800 text-center underline cursor-pointer"
-            >
-              Write a Message
-            </label>
-          </div>
+   console.log("Sending username:", storedUsername);
+   console.log("File name:", selectedFile.name);
+   // Removed scheduledTime field so it's only set later in memory-uploaded.
 
-          <p className="text-black">Or</p>
 
-          <div
-            className="flex flex-col items-center border-2 border-green-600 rounded-lg p-2 w-full bg-gray-50 cursor-pointer"
-            onClick={() => router.push('/record-memory')}
-          >
-            <img
-              src="https://cdn-icons-png.flaticon.com/128/711/711245.png"
-              alt="Record Icon"
-              className="w-8"
-            />
-            <label
-              htmlFor="record"
-              className="text-green-800 text-center underline cursor-pointer"
-            >
-              Record a Video
-            </label>
-          </div>
+   try {
+     const response = await fetch("http://localhost:8080/upload-gift", {
+       method: "POST",
+       body: formData,
+     });
 
-          <p className="text-black">Or</p>
 
-          <div
-            className="flex flex-col items-center border-2 border-dashed border-gray-400 rounded-lg p-6 w-full bg-gray-50 cursor-pointer"
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-          >
-            <input
-              type="file"
-              onChange={(e) => handleFileChange(e.target.files[0])}
-              className="hidden"
-              id="fileInput"
-            />
-            <label
-              htmlFor="fileInput"
-              className="text-blue-500 underline cursor-pointer text-center"
-            >
-              Upload a File
-            </label>
-          </div>
-        </div>
+     if (!response.ok) {
+       const errorText = await response.text();
+       throw new Error(`Upload failed: ${errorText}`);
+     }
 
-        <div className="mt-4 w-full px-6">
-          <label htmlFor="emailMessage" className="text-sm text-gray-700">
-            Custom Email Message (optional)
-          </label>
-          <textarea
-            id="emailMessage"
-            value={customMessage}
-            onChange={(e) => setCustomMessage(e.target.value)}
-            rows="3"
-            className="w-full text-black p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring focus:ring-blue-300"
-            placeholder="Enter a custom message for the email (optional)"
-          />
-        </div>
 
-        {message && (
-          <p className="mt-4 text-sm text-green-600">{message}</p>
-        )}
-        <button
-          onClick={handleUpload}
-          className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-        >
-          Upload Memory
-        </button>
-        </div>
-      </main>
-    </div>
-  );
+     const responseData = await response.json();
+     setMessage(responseData.message);
+
+
+     sessionStorage.setItem("currentGiftId", responseData.giftId);
+
+
+     router.push("/memory-uploaded");
+   } catch (err) {
+     console.error("Upload error:", err);
+     alert(err.message || "Upload failed. Please try again.");
+   }
+ };
+
+
+ const [activeTab, setActiveTab] = useState("video");
+
+
+ return (
+   <div className="min-h-screen bg-primary-foreground flex flex-col items-center">
+     <UserHeader/>
+
+
+     <div className="flex flex-col min-h-screen flex-grow justify-center items-center">
+     <div className="bg-white p-6 rounded-3xl lg:w-[900px] aspect-video flex flex-col md:flex-row items-center gap-x-6">
+       <img
+         src={
+           activeTab === 'video' ? "/rec_mem.png"
+           : activeTab === 'written' ? "/wr_mem.png"
+           : "/file_mem.png"
+         }
+         alt="Grandmother and child"
+         className="w-96 h-96 object-contain"
+       />
+       <div className="text-center flex flex-grow flex-col md:text-left">
+         <h2 className="text-4xl font-bold text-gray-800 mb-2">{activeTab === "video" ? "Video Memory" : activeTab === "written" ? "Written Memory" : "File Memory"}</h2>
+         {activeTab === "video" && (
+           <p className="text-gray-700 mb-4 mt-4 font-medium text-lg">
+             Record your stories, wisdom, and who you are. <br />
+             Store memories for generations to come. <br />
+             Celebrate occasions from beyond.
+           </p>
+         )}
+         {activeTab === "written" && (
+           <p className="text-gray-700 mb-4 mt-4 font-medium text-lg">
+             Let your thoughts live forever in writing. <br />
+             Share stories and wisdom through text. <br />
+             Express yourself from beyond.
+           </p>
+         )}
+         {activeTab === "file" && (
+           <p className="text-gray-700 mb-4 mt-4 font-medium text-lg">
+             Keep your important documents safe. <br />
+             Share videos, photos, and PDFs to family and friends.
+           </p>
+         )}
+         <Button className="self-start">
+           {activeTab === "video" ? "Record Memory" : activeTab === "written" ? "Write Memory" : "Upload File"}
+         </Button>
+       </div>
+   </div>
+   <div className="flex justify-center -mt-4 space-x-4">
+       <button
+         className={`pb-2 border-b-2 ${
+           activeTab === "video"
+             ? "bg-white rounded-xl p-5 text-gray-900"
+             : "bg-transparent rounded-xl p-5 text-gray-700"
+         }`}
+         onClick={() => setActiveTab("video")}
+       >
+         Video Memory
+       </button>
+       <button
+         className={`pb-2 border-b-2 ${
+           activeTab === "written"
+             ? "bg-white rounded-xl p-5 text-gray-900"
+             : "bg-transparent rounded-xl p-5 text-gray-700"
+         }`}
+         onClick={() => setActiveTab("written")}
+       >
+         Written Memory
+       </button>
+       <button
+         className={`pb-2 border-b-2 ${
+           activeTab === "file"
+             ? "bg-white rounded-xl p-5 text-gray-900"
+             : "bg-transparent rounded-xl p-5 text-gray-700"
+         }`}
+         onClick={() => setActiveTab("file")}
+       >
+         File Memory
+       </button>
+     </div>
+     </div>
+   </div>
+ );
 };
+
 
 export default NewMemory;
