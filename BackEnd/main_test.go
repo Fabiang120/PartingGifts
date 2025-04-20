@@ -556,3 +556,23 @@ func TestFollowAndUnfollowHandler(t *testing.T) {
 		t.Errorf("Unfollow failed: got %d", recUnfollow.Code)
 	}
 }
+
+func TestDiscoverUsersHandler(t *testing.T) {
+	db, _ = setupTestDB()
+	_ = insertUserWithID(1, "Sahil_1234", "pass")
+	_ = insertUserWithID(2, "Friend_5678", "pass")
+	_ = insertUserWithID(3, "Another_1", "pass")
+	_, _ = db.Exec("UPDATE users SET following = '2' WHERE id = 1") // Sahil follows Friend
+
+	req := httptest.NewRequest("GET", "/users/discover?username=Sahil_1234", nil)
+	rec := httptest.NewRecorder()
+	discoverUsersHandler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+
+	if bytes.Contains(rec.Body.Bytes(), []byte("Friend_5678")) {
+		t.Errorf("Friend_5678 should not appear in discovered users")
+	}
+}
