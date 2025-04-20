@@ -1,5 +1,7 @@
-## Links
+## Presentation Links
 
+## GitHub Link
+https://github.com/Fabiang120/PartingGifts
 
 ## Overview
 This document provides a detailed walkthrough of Sprint 4, covering both frontend enhancements and backend API updates. In Sprint 4, we focused on social features, calendar interfaces, and improving the memory module's editing experience.
@@ -20,12 +22,16 @@ http://localhost:4200
 
 Brief Details
 
-During Sprint 4, we introduced several major frontend screens including an About Us page, a Gift Calendar view with corrected release-time display and fixed time formatting bugs, a Messages, Friends & Notifications chat-like interface featuring private messaging screens, friends management, and real-time unread-message badges, and significant enhancements to the memory module such as an upgraded rich-text editor, a redesigned New Memory screen, new image components, and general UI polish and bug fixes across all memory workflows.
+During Sprint 4, we introduced several major frontend screens including an About Us page, a Gift Calendar view with corrected release-time display and fixed time formatting bugs, a Messages, Friends & Notifications chat-like interface featuring private messaging screens, friends management, and real-time unread-message badges. We also enhanced the memory module with a rich-text editor, a redesigned New Memory screen, and new image components. Backend work included implementing full messaging and friends systems, finalizing the notification logic, encrypting all messages, enhancing farewell recording logic, and building calendar support. Significant frontend testing was added, and all dependencies were included in the front-page README.
 
-## Specific Issues Finished 
+## Specific Issues Finished
 Added About Us page and navigation link.
 
 Developed Gift Calendar UI and fixed display/release-time bugs.
+
+Fixed day offset issues on calendar view.
+
+Fixed hour discrepancies in gift release display times.
 
 Constructed messaging interface with encryption and storage.
 
@@ -33,93 +39,163 @@ Built friends system (follow/unfollow) and follower/following endpoints.
 
 Integrated notification badge for unread messages.
 
+Finished frontend chat interface design and interactions.
+
+Finished implementing backend messaging logic and endpoints.
+
+Finished implementing backend friend system logic and endpoints.
+
+Finalized calendar API and integration between backend and frontend.
+
+Enhanced farewell message recording backend logic.
+
 Updated text editor and redesigned New Memory screen.
 
 Created new memory image components and fixed related bugs.
 
 UI refinements: buttons, layouts, and responsive adjustments.
 
+Added frontend unit tests for all major screens and reusable components.
 
-## Issues Completed descriptions 
-About Us ScreenCreated a new static page presenting team bios and project goals, accessible from the main menu.
+Verified frontend dependency list and included them in the front-page README.
 
-Gift Calendar FrontendBuilt a full-featured calendar using scheduled_release data; corrected incorrect time zone offsets and release-time parsing errors.
+Added backend unit tests for all new APIs and flows.
 
-Messaging & Chat UIImplemented conversation list and chat view; messages are encrypted in transit and storage, and decrypted on display.
 
-Friends SystemAdded follow/unfollow buttons, followers/following screens, and backend endpoints to manage mutual connections.
+Issues Completed Descriptions
+About Us Screen
+Created a new static page presenting team bios and project goals, accessible from the main menu.
 
-NotificationsDisplayed a badge on the header icon reflecting unread messages count via the /notifications API.
+Gift Calendar Frontend
+Built a full-featured calendar using scheduled_release data; corrected incorrect time zone offsets and release-time parsing errors. Fixed bugs where dates displayed a day or several hours behind the intended schedule.
 
-Memory ModuleSwapped in an improved rich-text editor, redesigned the New Memory screen for better form flow, and created image picker components; resolved styling regressions.
+Messaging & Chat UI
+Implemented conversation list and chat view; messages are encrypted in transit and storage, and decrypted on display. Full support for message retrieval, sending, and unread status updates.
+
+Friends System
+Added follow/unfollow buttons, followers/following screens, and backend endpoints to manage mutual connections. Verified bi-directional updates of following and follower lists.
+
+Notifications
+Displayed a badge on the header icon reflecting unread messages count via the /notifications API. Triggers real-time visibility on incoming messages.
+
+Calendar Logic Backend
+Implemented /gift-calendar endpoint for retrieving user-specific gift data. Integrated backend logic to support calendar scheduling with accurate timestamps and JSON responses.
+
+Farewell Message Enhancements
+Improved logic for recording, scheduling, and delivering farewell messages as gifts. Ensured consistent behavior across scheduled releases.
+
+Frontend Testing & Dependency Integration
+Added unit tests for all key components (Login, Register, Dashboard, Gift Upload, Chat). Audited all frontend dependencies and ensured the full list was published in the front-page README.
+
+Memory Module
+Swapped in an improved rich-text editor, redesigned the New Memory screen for better form flow, and created image picker components. Fixed related layout and style bugs.
 
 ## Specific Issues Not Finished
-
+None of the major user-facing features were left unfinished.
 
 ## Why Not Finished
-We still have some trouble communicating between the frontend and backend team as new dependencies often do not get written down or communication is just overall faulty.
+We finished everything this time around.
 
 ## Backend Unit Tests
 
-CreateAccountHandler:
+CreateAccountHandler
 Tests the account creation process by ensuring that a new user is successfully created and stored in the database.
 
-PersonalDetailsHandler:
-Checks that the user's personal details—such as primary and secondary contact emails—are correctly updated.
+PersonalDetailsHandler
+Checks that the user's personal details—such as primary and secondary contact emails—are correctly updated and retrievable.
 
-UploadGiftHandler:
-Verifies that gift files can be uploaded along with associated metadata (like email messages), ensuring the gift is stored properly.
+UploadGiftHandler
+Verifies that gift files can be uploaded with associated metadata and properly saved in the database.
 
-LoginHandler:
-Confirms that the login endpoint validates user credentials correctly by comparing submitted credentials with stored hashes.
+LoginHandler
+Confirms that login credentials are validated against securely hashed passwords.
 
-SetupReceiversHandler:
-Ensures that receivers for a gift are correctly set up by updating the gift record with receiver information.
+SetupReceiversHandler
+Ensures that gift receiver details are saved to the correct gift record.
 
-GiftCountHandler:
-Tests that the endpoint returns the accurate count of gifts associated with a user, confirming proper aggregation.
+GiftCountHandler
+Tests that the correct number of gifts associated with a user is returned.
 
-DownloadGiftHandler:
-Validates that a gift file can be retrieved and that its content exactly matches what was originally uploaded.
+DownloadGiftHandler
+Validates that uploaded gift files can be accurately retrieved.
 
-StopPendingGiftHandler:
-Checks the process to cancel a pending gift, confirming that the gift is removed or marked as canceled appropriately.
+StopPendingGiftHandler
+Ensures that a pending gift can be successfully canceled or deleted.
 
-sendGiftEmailToReceivers Function:
-Verifies that the function responsible for sending gift email notifications to receivers completes without errors.
+sendGiftEmailToReceivers Function
+Tests that email notifications with gifts are sent without failure.
 
-sendCheckEmail Function:
-Tests the functionality of sending a test (check) email, ensuring that email communication works as expected.
+sendCheckEmail Function
+Verifies the ability to send a sample or test email to a user.
 
-ChangePasswordHandler:
-Ensures that a user's password can be changed successfully, updating the stored hash and resetting the force-password-change flag.
+ChangePasswordHandler
+Checks that the password is updated securely and force-password-change flag is cleared.
 
-GetMessagesHandler:
-Tests retrieval of user messages, ensuring that messages are decrypted and formatted correctly for display.
+GetMessagesHandler
+Ensures that encrypted messages are retrieved, decrypted, and returned for the logged-in user.
 
-GetPrivacyHandler:
-Verifies that a user's privacy settings are fetched correctly from the database.
+GetPrivacyHandler
+Verifies correct fetching of a user’s privacy settings.
 
-UpdatePrivacyHandler:
-Checks that updates to a user's privacy settings are properly processed and stored in the database.
+UpdatePrivacyHandler
+Checks that updates to privacy preferences are stored properly.
 
-GetMessageNotificationHandler:
-Confirms that message notifications are accurately retrieved, ensuring timely alerts for new messages.
+GetMessageNotificationHandler
+Tests retrieval of unread message alerts for a specific user.
 
-ScheduleInactivityCheckHandler:
-Validates that an inactivity check is scheduled according to user settings, ensuring the correct backend logic is triggered.
+ScheduleInactivityCheckHandler
+Validates that inactivity monitoring is scheduled with the appropriate user-provided message.
 
-GetReceiversHandler:
-Tests that the gift receivers' information is successfully retrieved for display or further processing.
+GetReceiversHandler
+Tests whether a user’s list of gift receivers is correctly returned.
 
-VerifySecurityAnswerHandler:
-Checks that the provided security answer is validated against stored data, ensuring proper verification during account recovery.
+VerifySecurityAnswerHandler
+Confirms that the provided answer to a security question is validated correctly.
 
-GetSecurityInfoHandler:
-Tests that the endpoint correctly retrieves security information, aiding in password reset and verification workflows.
+GetSecurityInfoHandler
+Checks retrieval of security question and contact info for account recovery.
 
-ResetPasswordHandler:
-Validates that the password reset process works as intended by confirming the password is updated and the response indicates success.
+ResetPasswordHandler
+Ensures that password reset flow works and updates the stored password securely.
+
+Encrypt/Decrypt Functions
+Tests that messages can be encrypted and decrypted back to their original form.
+
+SendMessageHandler
+Checks that users can send messages if mutual privacy and follow conditions are met.
+
+GiftCalendarHandler
+Verifies retrieval of scheduled gifts with future release dates.
+
+FollowAndUnfollowHandler
+Tests that users can follow and unfollow others correctly, updating mutual follower/following lists.
+
+DiscoverUsersHandler
+Ensures users receive a filtered list of new accounts they are not already following.
+
+GetEligibleMessagingUsersHandler
+Checks that mutual followers with open messaging permissions are returned.
+
+GetGiftsHandler
+Tests that all gifts for a user are listed with correct metadata.
+
+PendingGiftsHandler
+Verifies that only gifts marked as pending are returned to the user.
+
+SearchUsersHandler
+Confirms that user search results match the provided query substring.
+
+SwaggerHandler
+Checks availability of Swagger documentation (if present in route).
+
+GetFollowersHandler
+Tests that a user’s follower list is returned accurately from stored relationships.
+
+GetFollowingHandler
+Ensures that the users someone is following are listed correctly.
+
+GetPersonalDetailsHandler
+Checks that primary/secondary contact emails and security questions are properly returned.
 
 ## Frontend Unit Tests Documentation
 

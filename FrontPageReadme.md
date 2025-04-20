@@ -1,8 +1,8 @@
-Parting Gifts
+## Parting Gifts
 
 A full-stack web application for sharing scheduled digital gifts with loved ones. This project includes a Go-based backend and a Next.js-based frontend, working together to allow users to upload digital gifts, manage delivery schedules, and send secure email notifications.
 
-Overview
+## Overview
 
 Users can:
 Create accounts and manage credentials securely
@@ -10,7 +10,12 @@ Upload digital gifts (files) to the platform
 Assign gifts to recipients with scheduled delivery
 Receive email notifications upon delivery
 
-Prerequisites
+## Project Structure
+├── /backend          # Go server and API logic
+├── /frontend         # Next.js frontend
+
+
+## Prerequisites
 
 
 Backend Requirements:
@@ -24,7 +29,7 @@ Frontend Requirements:
 Node.js & npm (v18+ recommended)
 
 
-Backend Setup
+## Backend Setup
 
 1. Clone the repository
     git clone https://github.com/yourusername/parting-gifts.git
@@ -44,7 +49,7 @@ Backend Setup
     Access at: http://localhost:8080
 
     
-Frontend Setup
+## Frontend Setup
 1. Go to directory
     cd ../frontend
 2. Install dependecies
@@ -53,7 +58,7 @@ Frontend Setup
     npm run dev
     The frontend runs on: http://localhost:3000
 
-Frontend Dependencies
+## Frontend Dependencies
 
 See the full list of dependencies and installation command below:
 
