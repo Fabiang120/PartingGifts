@@ -142,9 +142,9 @@ export default function PersonalDetails() {
   };
 
   return (
-    <div className="min-h-screen bg-blue-100 flex flex-col items-center">
+    <div className="min-h-screen bg-primary-foreground flex flex-col items-center">
       <UserHeader/>
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start mt-20">
+      <div className="flex flex-col min-h-screen flex-grow justify-center items-center">
         <form onSubmit={handleSubmit} className="bg-white rounded-xl p-10 text-black shadow-sm space-y-4 w-[500px]">
           <p className="font-bold text-2xl">Personal Details</p>
 
@@ -235,7 +235,7 @@ export default function PersonalDetails() {
         >
           Go to Privacy Settings
         </button>
-      </main>
+      </div>
     </div>
   );
 }

@@ -489,11 +489,12 @@ const Dashboard = () => {
   const normalGifts = gifts.filter((gift) => !gift.pending);
 
   return (
-    <div className="min-h-screen bg-primary-foreground">
+    <div className="min-h-screen bg-primary-foreground w-full">
       {/* Header */}
       <UserHeader />
       {/* Main Content */}
-      <main className="p-8 pt-20 space-y-8">
+      <main className="p-8 pt-40 space-y-8 items-center w-full justify-center flex flex-grow">
+      <div className="w-[1000px]">
         {isLoading ? (
           <div className="p-6 bg-white rounded-lg shadow-md flex justify-center">
             <p className="text-lg">Loading your gifts...</p>
@@ -627,6 +628,7 @@ const Dashboard = () => {
             </div>
           </>
         )}
+        </div>
       </main>
       {selectedGift && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">

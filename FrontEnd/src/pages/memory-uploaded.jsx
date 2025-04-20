@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useRouter } from "next/router";
+import { UserHeader } from "@/components/user-header";
 
 const MemoryUploaded = () => {
   const [receiverInfo, setReceiverInfo] = useState({
@@ -82,19 +83,12 @@ const MemoryUploaded = () => {
   };
 
   return (
-    <div className="min-h-screen text-black bg-blue-100 flex flex-col items-center">
-      {/* Header Section */}
-      <header className="flex items-center justify-between w-full px-8 py-4 bg-white shadow-md">
-        <img
-          src="https://i.postimg.cc/VsRBMLgn/pglogo.png"
-          alt="Parting Gifts Logo"
-          className="w-36"
-          onClick={() => router.push("/dashboard")}
-        />
-      </header>
+    <div className="min-h-screen bg-primary-foreground flex flex-col items-center">
+      <UserHeader/>
 
       {/* Main Content */}
-      <main className="flex flex-col items-center w-full max-w-5xl p-8 bg-white rounded-lg shadow-md mt-8 space-y-8">
+      <div className="flex flex-col min-h-screen flex-grow justify-center items-center">
+      <div className="bg-white p-6 rounded-3xl lg:w-[900px] aspect-video flex flex-col items-center justify-center gap-x-6">
         <h2 className="text-lg font-bold mb-4 text-gray-700">Receiver Information</h2>
         <div className="space-y-4 w-full">
           <div className="flex flex-col">
@@ -177,7 +171,8 @@ const MemoryUploaded = () => {
             Delete Memory
           </button>
         </div>
-      </main>
+      </div>
+      </div>
     </div>
   );
 };
