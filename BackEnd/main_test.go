@@ -708,3 +708,38 @@ func TestGetFollowingHandler(t *testing.T) {
 		t.Errorf("Expected following Friend_5678 not found in response: %s", rec.Body.String())
 	}
 }
+
+func TestGetPersonalDetailsHandler(t *testing.T) {
+	db, _ = setupTestDB()
+	_ = insertUserWithID(1, "Sahil_1234", "pass")
+
+	// Add contact email and security question
+	_, _ = db.Exec(`UPDATE users 
+		SET primary_contact_email = 'dhananisahil@ufl.edu', 
+		    secondary_contact_emails = 'alt@example.com', 
+		    security_question = 'Your favorite color?' 
+		WHERE id = 1`)
+
+	// Send GET request
+	req := httptest.NewRequest("GET", "/update-emails?username=Sahil_1234", nil)
+	rec := httptest.NewRecorder()
+
+	personalDetailsHandler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected 200 OK, got %d", rec.Code)
+	}
+
+	var response map[string]string
+	err := json.Unmarshal(rec.Body.Bytes(), &response)
+	if err != nil {
+		t.Errorf("Failed to decode JSON: %v", err)
+	}
+
+	if response["primary_contact_email"] != "dhananisahil@ufl.edu" {
+		t.Errorf("Expected primary email to be dhananisahil@ufl.edu, got %s", response["primary_contact_email"])
+	}
+	if response["security_question"] != "Your favorite color?" {
+		t.Errorf("Expected security question to be present")
+	}
+}
