@@ -8,6 +8,7 @@ import MessageNotification from "../components/MessageNotification";
 import { format, parseISO, addDays } from "date-fns";
 import ChatIcon from "./ChatIcon.jsx";
 
+
 // Calendar Component
 const GiftCalendar = ({ username, onClose }) => {
   const [calendarData, setCalendarData] = useState([]);
@@ -16,7 +17,13 @@ const GiftCalendar = ({ username, onClose }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [eventsByDate, setEventsByDate] = useState({});
   const [currentMonth, setCurrentMonth] = useState(new Date());
-
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    recipient: '',
+    message: ''
+  });
+  
   useEffect(() => {
     const fetchCalendarData = async () => {
       if (!username) return;
@@ -125,11 +132,11 @@ const GiftCalendar = ({ username, onClose }) => {
           className={`p-2 border ${hasEvents ? 'bg-blue-50 cursor-pointer' : ''} 
                      ${selectedDate === dateStr ? 'bg-blue-200' : ''} 
                      ${isToday ? 'border-2 border-red-400' : ''}`}
-                     onClick={() => {
-                      setSelectedDate(dateStr); // Always allow selection
-                      console.log(`Selected date: ${dateStr}`, eventsByDate[dateStr] || []);
-                    }}
-                    
+         onClick={() => {
+  setSelectedDate(dateStr); // Always allow selection
+  console.log(`Selected date: ${dateStr}`, eventsByDate[dateStr] || []);
+}}
+
         >
           <div className="text-center">
             <span className={`font-medium ${isToday ? 'text-red-600' : ''}`}>{day}</span>
@@ -249,25 +256,75 @@ const GiftCalendar = ({ username, onClose }) => {
               <div className="mt-1 text-xs text-gray-500">
                 * Today's date is shown with a red border
               </div>
-              <div className="mt-6 flex justify-center">
-  <button
-    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 shadow-md"
-    onClick={() => {
-      if (!selectedDate) {
-        alert("Please select a date from the calendar first.");
-        return;
-      }
-      alert(`Open memory scheduler for ${formatDisplayDate(selectedDate)}`);
-    }}
-  >
-    + Schedule Memory
-  </button>
-</div>
 
+              <div className="mt-6 flex justify-center">
+    <button
+      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 shadow-md"
+      onClick={() => {
+        if (!selectedDate) {
+          alert("Please select a date from the calendar first.");
+          return;
+        }
+        setShowScheduleForm(true);
+        // Replace this with opening your scheduling form/modal
+       // alert(`Schedule memory on ${formatDisplayDate(selectedDate)}: Select a gift and enter recipient info.`);
+      }}
+    >
+      + Schedule Memory
+    </button>
+    {showScheduleForm && (
+  <div className="mt-6 p-4 bg-gray-100 rounded shadow-md">
+    <h3 className="text-lg font-semibold mb-2">Schedule Memory for {formatDisplayDate(selectedDate)}</h3>
+    <div className="space-y-3">
+      <input
+        type="text"
+        placeholder="Memory Title"
+        className="w-full p-2 border rounded"
+        value={formData.title}
+        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+      />
+      <input
+        type="email"
+        placeholder="Recipient Email"
+        className="w-full p-2 border rounded"
+        value={formData.recipient}
+        onChange={(e) => setFormData({ ...formData, recipient: e.target.value })}
+      />
+      <textarea
+        placeholder="Your Message"
+        className="w-full p-2 border rounded"
+        rows={4}
+        value={formData.message}
+        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+      />
+      <div className="flex gap-4">
+        <button
+          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          onClick={() => {
+            alert(`Memory Scheduled!\n\nTo: ${formData.recipient}\nTitle: ${formData.title}\nMessage: ${formData.message}`);
+            setFormData({ title: '', recipient: '', message: '' });
+            setShowScheduleForm(false);
+          }}
+        >
+          Submit
+        </button>
+        <button
+          className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+          onClick={() => setShowScheduleForm(false)}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+  </div> 
             </div>
 
             <div>
               {selectedDate ? (
+                
                 <>
                   <h3 className="font-semibold mb-2">
                     Events on {formatDisplayDate(selectedDate)}
@@ -328,7 +385,13 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
-
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    recipient: '',
+    message: ''
+  });
+  
   // Effect to clear localStorage when component mounts (to reset gift states)
   useEffect(() => {
     // Clear the unwrapped gift state on page load
