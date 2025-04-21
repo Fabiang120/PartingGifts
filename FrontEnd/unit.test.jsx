@@ -960,6 +960,49 @@ describe("Schedule Memory Button", () => {
     expect(screen.getByPlaceholderText("Your Message")).toBeInTheDocument();
   });
 });
+describe("Schedule Memory Form", () => {
+  it("shows form, accepts input, and triggers submit", async () => {
+    sessionStorage.getItem.mockReturnValue("testUser");
+
+    await act(async () => {
+      render(<Dashboard />);
+    });
+
+    // 1. Click "View Calendar"
+    const calendarLink = screen.getByText(/View Calendar/i);
+    fireEvent.click(calendarLink);
+
+    // 2. Select a date
+    const allDates = await screen.findAllByText((content, el) =>
+      el.tagName === "SPAN" && /^\d+$/.test(content)
+    );
+    fireEvent.click(allDates[0]); // Click the first day cell
+
+    // 3. Click "+ Schedule Memory"
+    const scheduleBtn = screen.getByText(/\+ Schedule Memory/i);
+    fireEvent.click(scheduleBtn);
+
+    // 4. Fill the form fields
+    fireEvent.change(screen.getByPlaceholderText("Memory Title"), {
+      target: { value: "Test Title" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Recipient Email"), {
+      target: { value: "test@example.com" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Your Message"), {
+      target: { value: "This is a test message." },
+    });
+
+    // 5. Click Submit (Upload) button
+    const submitBtn = screen.getByRole("button", { name: /submit/i });
+    fireEvent.click(submitBtn);
+
+    // 6. Expect an alert to be triggered with form data
+    expect(global.alert).toHaveBeenCalledWith(
+      expect.stringContaining("Memory Scheduled")
+    );
+  });
+});
 
   describe("UI Components Integration", () => {
     it("integrates multiple UI components in a form", async () => {
