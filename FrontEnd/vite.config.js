@@ -8,11 +8,13 @@ export default defineConfig({
       include: '**/*.{js,jsx,ts,tsx}',
     }),
   ],
+  // vite.config.js
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, 'src'),
+      '@': path.resolve(__dirname, 'FrontEnd'),  
     },
   },
+  
   esbuild: {
     jsxFactory: 'React.createElement',
     jsxFragment: 'React.Fragment',

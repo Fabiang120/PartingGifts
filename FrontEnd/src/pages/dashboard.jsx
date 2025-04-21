@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import SimpleGiftBox from "./SimpleGiftBox.jsx";
-import { UserHeader } from "@/components/user-header.jsx";
+//import { UserHeader } from "@/components/user-header.jsx";
 import { Button } from "@/components/ui/button.jsx";
 import MessageNotification from "../components/MessageNotification";
 import { format, parseISO, addDays } from "date-fns";
