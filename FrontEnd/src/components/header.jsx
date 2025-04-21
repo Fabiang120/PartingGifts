@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Button } from "@/components/ui/button";
+import { Button } from "./ui/button";
 import {
 NavigationMenu,
 NavigationMenuContent,
@@ -9,7 +9,7 @@ NavigationMenuItem,
 NavigationMenuLink,
 NavigationMenuList,
 NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
+} from "./ui/navigation-menu";
 import { Menu, MoveRight, X } from "lucide-react";
 import Link from "next/link";
 

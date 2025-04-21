@@ -10,8 +10,8 @@ import Highlight from "@tiptap/extension-highlight";
 import jsPDF from "jspdf";
 import htmlToPdfMake from "html-to-pdfmake";
 import { Document, Page, Text, View, PDFDownloadLink, pdf } from "@react-pdf/renderer";
-import RichTextEditor from "@/components/TiptapEditor";
-import { UserHeader } from "@/components/user-header";
+import RichTextEditor from "../components/TiptapEditor";
+import { UserHeader } from "../components/user-header";
 
 const ExportedPDF = ({ content }) => (
     <Document>

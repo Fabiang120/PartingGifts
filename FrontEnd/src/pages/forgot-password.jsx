@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useRouter } from "next/router";
-import { Button } from "@/components/ui/button";
+import { Button } from "../components/ui/button";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");

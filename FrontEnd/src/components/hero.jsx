@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import Image from 'next/image'; 
 import { MoveRight, PhoneCall } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
 import Link from 'next/link';
 
 export const Hero = () => (

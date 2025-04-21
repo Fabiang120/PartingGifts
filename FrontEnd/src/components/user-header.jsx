@@ -1,6 +1,6 @@
 // Updated user-header.jsx
 import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
+import { Button } from "./ui/button";
 import {
     NavigationMenu,
     NavigationMenuContent,
@@ -8,7 +8,7 @@ import {
     NavigationMenuLink,
     NavigationMenuList,
     NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
+} from "./ui/navigation-menu";
 import { Menu, MoveRight, X, Users } from "lucide-react";
 import Link from "next/link";
 import ChatIcon from "../pages/ChatIcon.jsx";

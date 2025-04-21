@@ -1,7 +1,7 @@
 import React, { useState, useEffect, act } from "react";
 import { useRouter } from "next/router";
-import { UserHeader } from "@/components/user-header";
-import { Button } from "@/components/ui/button";
+import { UserHeader } from "../components/user-header";
+import { Button } from "../components/ui/button";
 
 
 const NewMemory = () => {

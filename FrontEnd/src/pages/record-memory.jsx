@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Image from "next/image";
-import { UserHeader } from "@/components/user-header";
+import { UserHeader } from "../components/user-header";
 
 const RecordMemory = () => {
   const videoRef = useRef(null);

@@ -1,7 +1,7 @@
 import React from "react";
 import { useState } from "react";
 import { useRouter } from "next/router";
-import { RegisterForm } from "@/components/register-form";
+import { RegisterForm } from "../components/register-form";
 
 export default function RegisterPage() {
   

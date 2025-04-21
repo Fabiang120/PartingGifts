@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useRouter } from "next/router";
-import { UserHeader } from "@/components/user-header";
+import { UserHeader } from "../components/user-header";
 
 const MemoryUploaded = () => {
   const [receiverInfo, setReceiverInfo] = useState({

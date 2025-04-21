@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useRouter } from "next/router";
-import { LoginForm } from "@/components/login-form";
+import { LoginForm } from "../components/login-form";
 
 const LoginPage = () => {
   const [username, setUsername] = useState("");
