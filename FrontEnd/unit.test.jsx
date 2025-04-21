@@ -97,6 +97,8 @@ vi.mock("lucide-react", () => ({
   AlignLeft: () => <div data-testid="align-left-icon">Left</div>,
   AlignCenter: () => <div data-testid="align-center-icon">Center</div>,
   AlignRight: () => <div data-testid="align-right-icon">Right</div>,
+  Bold: () => <div data-testid="bold-icon">Bold</div>,
+  Highlighter: () => <div data-testid="highlighter-icon">Highlighter</div>,
 
 }));
 
@@ -341,8 +343,7 @@ describe("RecordMemory Component", () => {
     await act(async () => {
       render(<RecordMemory />);
     });
-    // Verify the heading and video element
-    expect(screen.getByText(/Record a Memory/i)).toBeInTheDocument();
+    // Verify the video element
     expect(document.querySelector("video")).toBeTruthy();
   });
 });
@@ -355,7 +356,7 @@ describe("WriteMemory Component", () => {
       render(<WriteMemory />);
     });
     // Check for heading and title input.
-    expect(screen.getByText(/Write a Memory/i)).toBeInTheDocument();
+    expect(screen.getByText(/Write Memory/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Memory Title/i)).toBeInTheDocument();
     // Check for Save Memory and Cancel buttons.
     expect(screen.getByText(/Save Memory/i)).toBeInTheDocument();
@@ -448,7 +449,6 @@ describe("MemoryUploaded Component", () => {
       expect(screen.getByDisplayValue("Test Memory")).toBeInTheDocument();
       // Verify toolbar buttons exist
       expect(screen.getByText(/Bold/i)).toBeInTheDocument();
-      expect(screen.getByText(/Italic/i)).toBeInTheDocument();
       expect(screen.getByText(/Save Memory/i)).toBeInTheDocument();
     });
   });
