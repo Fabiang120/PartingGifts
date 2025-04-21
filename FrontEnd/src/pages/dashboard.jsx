@@ -249,7 +249,21 @@ const GiftCalendar = ({ username, onClose }) => {
               <div className="mt-1 text-xs text-gray-500">
                 * Today's date is shown with a red border
               </div>
-              
+              <div className="mt-6 flex justify-center">
+  <button
+    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 shadow-md"
+    onClick={() => {
+      if (!selectedDate) {
+        alert("Please select a date from the calendar first.");
+        return;
+      }
+      alert(`Open memory scheduler for ${formatDisplayDate(selectedDate)}`);
+    }}
+  >
+    + Schedule Memory
+  </button>
+</div>
+
             </div>
 
             <div>
