@@ -1,4 +1,11 @@
 ## Presentation Links
+Sprint 4 Update
+https://youtu.be/iFnFruSwKB0
+https://youtu.be/EPBHfFq529E
+
+Project Overview 
+https://youtu.be/YzQDka00ZrI
+
 
 ## GitHub Link
 https://github.com/Fabiang120/PartingGifts
@@ -199,76 +206,78 @@ Checks that primary/secondary contact emails and security questions are properly
 
 ## Frontend Unit Tests Documentation
 
+
 Page Component Tests
 
-Dashboard Component
-Verifies dashboard correctly displays personalized user greeting ("Hello testUser!")
+Dashboard Component: Verifies dashboard displays personalized greeting ("Hello testUser!").
 
-ForceChange Component
-Tests password change form validation shows errors when passwords don't match
+ForceChange Component: Checks password change form validation errors when passwords don’t match.
 
-ForgotPassword Component
-Confirms email submission works and error handling functions when reset fails
+ForgotPassword Component: Confirms email submission works and error handling on reset failure.
 
-Login Component
-Checks error messages appear after invalid login attempts
+Login Component: Ensures error message appears after invalid login attempts.
 
-NewMemory Component
-Verifies upload interface renders properly with functional upload button
+NewMemory Component: Verifies upload interface and upload button functionality.
 
-Register Component
-Ensures all registration fields (name, email, password) render correctly
+Register Component: Ensures all registration fields render correctly.
 
-RecordMemory Component
-Tests video recording interface loads with proper media controls
+RecordMemory Component: Tests video recording interface loads with media controls.
 
-WriteMemory Component
-Confirms editor displays with title field, formatting options and action buttons
+WriteMemory Component: Confirms editor displays title field, formatting toolbar, and action buttons.
 
-PersonalDetails Component
-Verifies user details display with update functionality and navigation controls
+PersonalDetails Component: Verifies user details form displays with update and navigation controls.
 
-MemoryUploaded Component
-Tests alert functionality when session data is missing during form submission
+MemoryUploaded Component: Tests alert when session data missing during form submission.
+
+FileMemory Component: Checks file upload flow and navigation after upload.
+
 
 UI Component Tests
 
-UserHeader Component
-Verifies username appears when authenticated and redirects when not
+UserHeader Component: Verifies username appears when authenticated and redirects if not.
 
-WriteMemory Editor
-Tests text input and formatting button functionality
+WriteMemory Editor: Tests text input, formatting buttons, and save/cancel actions.
 
-Dashboard Gift Display
-Confirms gifts render properly and unwrapping animation triggers correctly
+Dashboard Gift Display: Confirms gifts render and unwrapping animation triggers correctly.
 
-SimpleGiftBox Component
-Tests gift rendering in both closed and opening states with proper callbacks
+SimpleGiftBox Component: Tests gift box states (closed/opening), props, and onOpenComplete callback.
 
-Basic UI Components
 
-Header: Tests navigation display and mobile menu toggle
+Basic UI Library Tests
 
-Hero: Verifies marketing headline and image appear correctly
+Header: Tests navigation items, mobile menu toggle, and active link behavior.
 
-LoginForm: Confirms all login fields render with proper labels
+Hero: Verifies marketing headline, subheading, and image render correctly.
 
-UI Library Tests
+LoginForm: Confirms all login fields and labels render as expected.
 
-Button: Tests rendering variants, sizes, click handling and child composition
+RegisterForm: Ensures register form fields and submit button render properly.
 
-Card: Verifies all card subcomponents render with proper customization
+Button: Tests rendering variants, sizes, click handling, and child composition.
 
-Input: Tests rendering of different input types and change event handling
+Card: Verifies Card, CardHeader, CardTitle, CardDescription, CardContent, and CardFooter render and support custom classes.
 
-Label: Confirms text rendering and form control associations
+Input: Checks rendering of various input types and change event handling.
 
-Badge: Tests variant styling and custom class application
+Label: Confirms label text, association with form controls, and custom class support.
 
-Checkbox: Verifies basic rendering and customization
-NavigationMenu: Tests proper rendering of navigation hierarchy
+Badge: Tests variant styles and custom class application.
 
-Component Integration: Confirms UI components work together properly in forms
+Checkbox: Verifies rendering and custom class application.
+
+NavigationMenu: Ensures menu structure renders with list, items, links, triggers, and content.
+
+
+
+Calendar & Scheduling Tests
+
+Calendar Flow in Dashboard: Opens calendar on "View Calendar", shows calendar header and "+ Schedule Memory" button.
+
+Schedule Memory Button: Alerts if no date selected; after date selection, opens the scheduling form.
+
+Schedule Memory Form: Displays form fields, accepts inputs (title, email, message), and submits to trigger alert with form summary.
+
+UI Components Integration: Integrates Label, Input, Checkbox, Button within a Card-form; tests form submission handler calls.
 
 ## Cypress Test
 
