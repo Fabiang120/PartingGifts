@@ -917,6 +917,50 @@ describe("UI Components", () => {
     });
   });
   
+describe("Schedule Memory Button", () => {
+  it("clicking 'Schedule Memory' opens the scheduling form", async () => {
+    // Mock sessionStorage to have a username
+    sessionStorage.getItem = vi.fn(() => "testUser");
+
+    await act(async () => {
+      render(<Dashboard />);
+    });
+
+    // Open calendar
+    const viewCalendarLink = screen.getByText(/View Calendar/i);
+    fireEvent.click(viewCalendarLink);
+
+    // Wait for the "+ Schedule Memory" button to show up
+    const scheduleButton = await screen.findByRole("button", {
+      name: /\+ Schedule Memory/i,
+    });
+
+    // Since no date is selected yet, it should alert the user
+    fireEvent.click(scheduleButton);
+    expect(global.alert).toHaveBeenCalledWith(
+      "Please select a date from the calendar first."
+    );
+
+    // Click on any day cell (pick first day available)
+    const dayCells = screen.getAllByText((content, el) =>
+      el.tagName === "SPAN" && /^\d+$/.test(content)
+    );
+    fireEvent.click(dayCells[0]); // Select any valid day
+
+    // Now click the button again
+    fireEvent.click(scheduleButton);
+
+    // Check if form shows up
+    expect(
+      await screen.findByPlaceholderText("Memory Title")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Recipient Email")
+    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Your Message")).toBeInTheDocument();
+  });
+});
+
   describe("UI Components Integration", () => {
     it("integrates multiple UI components in a form", async () => {
       const handleSubmit = vi.fn(e => e.preventDefault());
