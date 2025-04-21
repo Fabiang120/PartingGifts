@@ -14,6 +14,7 @@ import PersonalDetails from "./src/pages/personal-details";
 import RecordMemory from "./src/pages/record-memory";
 import RegisterPage from "./src/pages/register";
 import WriteMemory from "./src/pages/write-memory";
+import FileMemory from "./src/pages/file-memory";
 
 // UI Components (from ./src/components)
 import { Header } from "./src/components/header.jsx";
@@ -84,7 +85,19 @@ vi.mock("lucide-react", () => ({
   MoveRight: () => <div data-testid="move-right-icon">MoveRight</div>,
   PhoneCall: () => <div data-testid="phone-call-icon">PhoneCall</div>,
   ArrowRight: () => <div data-testid="arrow-right-icon">ArrowRight</div>,
-  // Add any other Lucide icons used in your components
+  Users: () => <div data-testid="users-icon">Users</div>,
+  Heading1: () => <div data-testid="heading1-icon">H1</div>,
+  Heading2: () => <div data-testid="heading2-icon">H2</div>,
+  Heading3: () => <div data-testid="heading3-icon">H3</div>,
+  List: () => <div data-testid="list-icon">List</div>,
+  ListOrdered: () => <div data-testid="listordered-icon">OL</div>,
+  Strikethrough: () => <div data-testid="strikethrough-icon">S</div>,
+  Highlight: () => <div data-testid="highlight-icon">HL</div>,
+  Italic: () => <div data-testid="italic-icon">I</div>,
+  AlignLeft: () => <div data-testid="align-left-icon">Left</div>,
+  AlignCenter: () => <div data-testid="align-center-icon">Center</div>,
+  AlignRight: () => <div data-testid="align-right-icon">Right</div>,
+
 }));
 
 // --------------------- Global Stubs & Mocks ---------------------
@@ -239,11 +252,11 @@ describe("Login Component", () => {
   });
 });
 
-describe("NewMemory Component", () => {
+describe("FileMemory Component", () => {
   it("handles file upload and navigation", async () => {
     useRouter.mockReturnValue({ query: {}, push: vi.fn() });
     await act(async () => {
-      render(<NewMemory />);
+      render(<FileMemory />);
     });
     const uploadButton = screen.getByText(/Upload Memory/i);
     expect(uploadButton).toBeInTheDocument();
