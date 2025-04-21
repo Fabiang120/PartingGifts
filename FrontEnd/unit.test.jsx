@@ -518,7 +518,40 @@ describe("MemoryUploaded Component", () => {
       vi.resetAllMocks();
     });
   });
-
+  describe("Calendar flow in Dashboard", () => {
+    it("opens calendar when 'View Calendar' is clicked", async () => {
+      sessionStorage.getItem.mockReturnValue("testUser");
+      await act(async () => {
+        render(<Dashboard />);
+      });
+  
+      const viewCalendarLink = screen.getByText(/View Calendar/i);
+      fireEvent.click(viewCalendarLink);
+  
+      expect(await screen.findByText(/Gift Release Calendar/i)).toBeInTheDocument();
+      expect(screen.getByText(/Sun/)).toBeInTheDocument(); // calendar header
+      expect(screen.getByRole("button", { name: /\+ Schedule Memory/i })).toBeInTheDocument();
+    });
+  
+    it("allows date selection and shows schedule form", async () => {
+      sessionStorage.getItem.mockReturnValue("testUser");
+      await act(async () => {
+        render(<Dashboard />);
+      });
+  
+      fireEvent.click(screen.getByText(/View Calendar/i));
+      const anyDate = await screen.findAllByRole("cell"); // table cells
+      const targetDate = anyDate.find((cell) => cell.textContent?.trim() !== "");
+      fireEvent.click(targetDate); // select any available date
+  
+      fireEvent.click(screen.getByRole("button", { name: /\+ Schedule Memory/i }));
+  
+      expect(await screen.findByPlaceholderText("Memory Title")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("Recipient Email")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("Your Message")).toBeInTheDocument();
+    });
+  });
+  
   describe("SimpleGiftBox Component", () => {
     it("renders with correct props and handles opening animation", async () => {
       // Mock SimpleGiftBox with a simplified version for testing
